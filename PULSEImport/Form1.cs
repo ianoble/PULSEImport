@@ -454,33 +454,41 @@ namespace PULSEImport
                         {
                             var fields = new List<string>();
 
-                            //Execute a loop over the columns.  
-                            foreach (string cell in row.Split(','))
-                            {
-                                if (!string.IsNullOrEmpty(cell.Replace("\r", "")))
-                                    fields.Add(cell);
-                            }
+                            var sn = row.Split(',')[0];
+                            var pn = row.Split(',')[1];
 
-                            try
-                            {
-                                var model = DeviceModels.SingleOrDefault(dm =>
-                                    dm.typeData.trimblePartNumber == fields[2].ToString());
+                            // Serial Number
+                            if (!string.IsNullOrEmpty(sn.Replace("\r", "")))
+                                fields.Add(sn);
 
-                                if (!string.IsNullOrEmpty(SafeType.SafeString(model)))
+                            // Part Number
+                            if (!string.IsNullOrEmpty(pn.Replace("\r", "")))
+                            {
+                                // Model
+                                try
                                 {
-                                    fields.Add(model.tId);
+                                    var model = DeviceModels.SingleOrDefault(dm =>
+                                        dm.typeData.trimblePartNumber == pn.ToString());
+
+                                    if (!string.IsNullOrEmpty(SafeType.SafeString(model)))
+                                    {
+                                        fields.Add(model.tId);
+                                    }
+
+                                }
+                                catch (Exception exception)
+                                {
+                                    //MessageBox.Show("Could not process import.");
+                                    Console.WriteLine(exception);
+                                    Log4NetHelper.LogError(Logger, exception);
+
+                                    break;
                                 }
 
-                                dtgDevices.Rows.Add(fields.ToArray());
+                                fields.Add(pn);
                             }
-                            catch (Exception exception)
-                            {
-                                MessageBox.Show("Could not process import.");
-                                Console.WriteLine(exception);
-                                Log4NetHelper.LogError(Logger, exception);
 
-                                break;
-                            }
+                            dtgDevices.Rows.Add(fields.ToArray());
                         }
                     }
 
