@@ -43,57 +43,6 @@ namespace PULSEImport
 
         }
 
-        private void materialRaisedButton1_Click(object sender, EventArgs e)
-        {
-            if (string.IsNullOrEmpty(((DropDownItem)ddlEnvironment.SelectedItem).Value) ||
-                string.IsNullOrEmpty(txtEmail.Text) ||
-                string.IsNullOrEmpty(txtPassword.Text))
-            {
-                MessageBox.Show("Please enter an email and password!");
-            }
-            else
-            {
-                // Do login stuff...
-                var tokens = LoginUser();
-
-                if (!string.IsNullOrEmpty(tokens))
-                {
-                    var accessToken = tokens.Split('|')[0];
-                    var refreshToken = tokens.Split('|')[1];
-
-                    _configData.AccessToken = accessToken;
-                    _configData.RefreshToken = refreshToken;
-
-                    Properties.Settings.Default.Email = txtEmail.Text;
-                    Properties.Settings.Default.Password = txtPassword.Text;
-
-                    Properties.Settings.Default.AccessToken = _configData.AccessToken;
-                    Properties.Settings.Default.RefreshKey = _configData.RefreshToken;
-                    Properties.Settings.Default.Environment = ((DropDownItem)ddlEnvironment.SelectedItem).Value;
-
-                    Properties.Settings.Default["LoggedIn"] = _loggedIn;
-                    Properties.Settings.Default.Save(); // Saves settings in application configuration file
-
-                    ComboBox environment = ((Form1)this.Owner).ddlEnvironment; // new Form1();
-                    environment.SelectedIndex = environment.FindStringExact(Properties.Settings.Default.Environment);
-
-                    //frm.Location = this.Location;
-                    //frm.StartPosition = FormStartPosition.Manual;
-                    //frm.FormClosing += delegate { this.Show(); };
-                    //frm.Show();
-                    //this.Hide();
-
-                    _loggedIn = true;
-
-                    this.Close();
-                }
-                else
-                {
-                    MessageBox.Show("Could not log you in.", "Login error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                }
-            }
-        }
-
         private void Login_FormClosing(object sender, FormClosingEventArgs e)
         {
             //if (!_loggedIn)
@@ -151,6 +100,81 @@ namespace PULSEImport
                 return null;
                 //throw;
             }
+        }
+
+        private void btnCancel_Click(object sender, EventArgs e)
+        {
+            DialogResult msgboxConfirm = MessageBox.Show(
+                "Are you sure you want to exit?", "Confirm", MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (msgboxConfirm == DialogResult.Yes)
+            {
+                try
+                {
+                    Environment.Exit(0);
+                }
+                catch (Exception exception)
+                {
+                    Console.WriteLine(exception);
+                    //throw;
+                }
+            }
+        }
+
+        private void btnLogin_Click(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(((DropDownItem)ddlEnvironment.SelectedItem).Value) ||
+                string.IsNullOrEmpty(txtEmail.Text) ||
+                string.IsNullOrEmpty(txtPassword.Text))
+            {
+                MessageBox.Show("Please enter an email and password!");
+            }
+            else
+            {
+                // Do login stuff...
+                var tokens = LoginUser();
+
+                if (!string.IsNullOrEmpty(tokens))
+                {
+                    var accessToken = tokens.Split('|')[0];
+                    var refreshToken = tokens.Split('|')[1];
+
+                    _configData.AccessToken = accessToken;
+                    _configData.RefreshToken = refreshToken;
+
+                    Properties.Settings.Default.Email = txtEmail.Text;
+                    Properties.Settings.Default.Password = txtPassword.Text;
+
+                    Properties.Settings.Default.AccessToken = _configData.AccessToken;
+                    Properties.Settings.Default.RefreshKey = _configData.RefreshToken;
+                    Properties.Settings.Default.Environment = ((DropDownItem)ddlEnvironment.SelectedItem).Value;
+
+                    Properties.Settings.Default["LoggedIn"] = _loggedIn;
+                    Properties.Settings.Default.Save(); // Saves settings in application configuration file
+
+                    ComboBox environment = ((Form1)this.Owner).ddlEnvironment; // new Form1();
+                    environment.SelectedIndex = environment.FindStringExact(Properties.Settings.Default.Environment);
+
+                    //frm.Location = this.Location;
+                    //frm.StartPosition = FormStartPosition.Manual;
+                    //frm.FormClosing += delegate { this.Show(); };
+                    //frm.Show();
+                    //this.Hide();
+
+                    _loggedIn = true;
+
+                    this.Close();
+                }
+                else
+                {
+                    MessageBox.Show("Could not log you in.", "Login error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                }
+            }
+        }
+
+        private void txtPassword_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            btnLogin.Enabled = (txtPassword.Text.Length > 0);
         }
     }
 }

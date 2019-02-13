@@ -19,7 +19,8 @@
                 ApiUrl = "https://api-stg.trimble.com/t/trimble.com/stg/pulse/", // "https://api-stg.trimble.com/t/trimble.com/staging/capi/",
                 // https://api-stg.trimble.com/t/trimble.com/oculus/accounts/v5/?name=wester
                 // https://api-stg.trimble.com/t/trimble.com/staging/capi/
-                PULSEApiUrl = "https://api-stg.trimble.com/t/trimble.com/na/pulse/"
+                PULSEApiUrl = "https://api-stg.trimble.com/t/trimble.com/na/pulse/",
+                OculusTId = "5823032be4b031d66b00e246" // TODO get source account on Staging
             };
         }
 
@@ -31,7 +32,8 @@
                 ClientId = "wPsCetnN3OiJa8focyfXf1LsuK0a",
                 Secret = "t8SoVjkFDg_HwI_I4wa9kOfBrzsa",
                 ApiUrl = "https://api.trimble.com/t/trimble.com/oculus/",
-                PULSEApiUrl = "https://api.trimble.com/t/trimble.com/na/pulse/"
+                PULSEApiUrl = "https://api.trimble.com/t/trimble.com/na/pulse/",
+                OculusTId = "58240ee5e4b01e7825f67da6"
             };
         }
 
