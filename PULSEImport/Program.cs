@@ -17,7 +17,7 @@ namespace PULSEImport
             //ShowLoginDialog();
 
             Application.Run(new Form1());
-            //Application.Run(new Login());
+            //Application.Run(new Resize());
         }
 
         private static void ShowLoginDialog()

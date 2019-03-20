@@ -10,6 +10,20 @@
             set { _configData = value; }
         }
 
+        public static ConfigData GetQAConfig()
+        {
+            return new ConfigData()
+            {
+                ClientId = "bAv41PSbPv31TcIDnkoFHzR632Ma", // "e4tU3mJJ4reo1mQXPWbGX3joj_Qa",
+                Secret = "E26lV8d4lOxlAciHPytqtQRf9TUa", // "e0TTH8m8KNRAzzvlaI5YLMQmKdEa",
+                ApiUrl = "https://api-stg.trimble.com/t/trimble.com/qa/oculus/", // "https://api-stg.trimble.com/t/trimble.com/staging/capi/",
+                // https://api-stg.trimble.com/t/trimble.com/oculus/accounts/v5/?name=wester
+                // https://api-stg.trimble.com/t/trimble.com/staging/capi/
+                PULSEApiUrl = "https://api-stg.trimble.com/t/trimble.com/qa/oculus/",
+                OculusTId = "57becd96e4b0d4a289fd8f72" // TODO get source account on Staging
+            };
+        }
+
         public static ConfigData GetStagingConfig()
         {
             return new ConfigData()

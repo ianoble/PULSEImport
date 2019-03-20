@@ -19,6 +19,7 @@ namespace PULSEImport
         {
             var environments = new List<DropDownItem>();
 
+            environments.Add(new DropDownItem() { Value = "QA", Text = "QA" });
             environments.Add(new DropDownItem() { Value = "Staging", Text = "Staging" });
             environments.Add(new DropDownItem() { Value = "Production", Text = "Production" });
             environments.Add(new DropDownItem() { Value = "Production (EU)", Text = "Production (EU)" });
@@ -71,6 +72,9 @@ namespace PULSEImport
 
             switch (environment)
             {
+                case "QA":
+                    _configData = EnvironmentConfig.GetQAConfig();
+                    break;
                 case "Staging":
                     _configData = EnvironmentConfig.GetStagingConfig();
                     break;

@@ -36,7 +36,6 @@
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle4 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle6 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle7 = new System.Windows.Forms.DataGridViewCellStyle();
-            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle8 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle9 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle10 = new System.Windows.Forms.DataGridViewCellStyle();
@@ -49,6 +48,7 @@
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle17 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle18 = new System.Windows.Forms.DataGridViewCellStyle();
             System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle19 = new System.Windows.Forms.DataGridViewCellStyle();
+            System.Windows.Forms.DataGridViewCellStyle dataGridViewCellStyle5 = new System.Windows.Forms.DataGridViewCellStyle();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.materialTabControl1 = new MaterialSkin.Controls.MaterialTabControl();
             this.tab1 = new System.Windows.Forms.TabPage();
@@ -62,7 +62,7 @@
             this.materialLabel1 = new System.Windows.Forms.Label();
             this.ddlEnvironment = new System.Windows.Forms.ComboBox();
             this.tab2 = new System.Windows.Forms.TabPage();
-            this.btnClearGrid = new MaterialSkin.Controls.MaterialRaisedButton();
+            this.btnClearGrid = new System.Windows.Forms.Button();
             this.txtErrorLog = new System.Windows.Forms.TextBox();
             this.lblAccountName = new System.Windows.Forms.Label();
             this.tabControl1 = new System.Windows.Forms.TabControl();
@@ -71,11 +71,6 @@
             this.lnkUploadDevices = new System.Windows.Forms.LinkLabel();
             this.materialLabel2 = new System.Windows.Forms.Label();
             this.dtgDevices = new System.Windows.Forms.DataGridView();
-            this.SerialNumber = new System.Windows.Forms.DataGridViewTextBoxColumn();
-            this.DeviceModel = new System.Windows.Forms.DataGridViewComboBoxColumn();
-            this.PartNumber = new System.Windows.Forms.DataGridViewComboBoxColumn();
-            this.DeviceManufacturer = new System.Windows.Forms.DataGridViewComboBoxColumn();
-            this.DeviceDelete = new System.Windows.Forms.DataGridViewButtonColumn();
             this.tabPage5 = new System.Windows.Forms.TabPage();
             this.lnkEquipmentUploadTemplate = new System.Windows.Forms.LinkLabel();
             this.lnkUploadEquipment = new System.Windows.Forms.LinkLabel();
@@ -116,13 +111,17 @@
             this.tabControl2 = new System.Windows.Forms.TabControl();
             this.tabPage7 = new System.Windows.Forms.TabPage();
             this.dtgEquipmentModels = new System.Windows.Forms.DataGridView();
+            this.EModelName = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.EModelManufacturer = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.EModelDescription = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.EModelDelete = new System.Windows.Forms.DataGridViewButtonColumn();
             this.lnkEquipModelTemplate = new System.Windows.Forms.LinkLabel();
             this.lnkEquipModelUpload = new System.Windows.Forms.LinkLabel();
             this.tabPage8 = new System.Windows.Forms.TabPage();
             this.lnkVehicleModelTemplate = new System.Windows.Forms.LinkLabel();
             this.lnkVehicleModelUpload = new System.Windows.Forms.LinkLabel();
             this.tabPage3 = new System.Windows.Forms.TabPage();
-            this.materialRaisedButton1 = new MaterialSkin.Controls.MaterialRaisedButton();
+            this.btnSubmit = new System.Windows.Forms.Button();
             this.materialTabSelector1 = new MaterialSkin.Controls.MaterialTabSelector();
             this.statusStrip1 = new System.Windows.Forms.StatusStrip();
             this.lblStatus = new System.Windows.Forms.ToolStripStatusLabel();
@@ -142,6 +141,13 @@
             this.aboutPULSEImportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.timer1 = new System.Windows.Forms.Timer(this.components);
             this.lblVersion = new System.Windows.Forms.Label();
+            this.SerialNumber = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.DeviceModel = new System.Windows.Forms.DataGridViewComboBoxColumn();
+            this.PartNumber = new System.Windows.Forms.DataGridViewComboBoxColumn();
+            this.DeviceManufacturer = new System.Windows.Forms.DataGridViewComboBoxColumn();
+            this.DeviceAssociation = new System.Windows.Forms.DataGridViewComboBoxColumn();
+            this.DeviceInitialLocation = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.DeviceDelete = new System.Windows.Forms.DataGridViewButtonColumn();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.materialTabControl1.SuspendLayout();
             this.tab1.SuspendLayout();
@@ -179,10 +185,14 @@
             // 
             // materialTabControl1
             // 
+            this.materialTabControl1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.materialTabControl1.Controls.Add(this.tab1);
             this.materialTabControl1.Controls.Add(this.tab2);
             this.materialTabControl1.Depth = 0;
             this.materialTabControl1.Location = new System.Drawing.Point(16, 80);
+            this.materialTabControl1.MinimumSize = new System.Drawing.Size(776, 472);
             this.materialTabControl1.MouseState = MaterialSkin.MouseState.HOVER;
             this.materialTabControl1.Name = "materialTabControl1";
             this.materialTabControl1.SelectedIndex = 0;
@@ -206,11 +216,14 @@
             // 
             // btnNext
             // 
+            this.btnNext.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.btnNext.Enabled = false;
             this.btnNext.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.btnNext.Location = new System.Drawing.Point(688, 400);
+            this.btnNext.Location = new System.Drawing.Point(672, 400);
+            this.btnNext.MaximumSize = new System.Drawing.Size(82, 36);
+            this.btnNext.MinimumSize = new System.Drawing.Size(82, 36);
             this.btnNext.Name = "btnNext";
-            this.btnNext.Size = new System.Drawing.Size(66, 36);
+            this.btnNext.Size = new System.Drawing.Size(82, 36);
             this.btnNext.TabIndex = 9;
             this.btnNext.Text = "NEXT >";
             this.btnNext.UseVisualStyleBackColor = true;
@@ -218,6 +231,9 @@
             // 
             // grpAccounts
             // 
+            this.grpAccounts.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.grpAccounts.Controls.Add(this.panel1);
             this.grpAccounts.Controls.Add(this.dtgAccounts);
             this.grpAccounts.Enabled = false;
@@ -252,6 +268,9 @@
             // 
             this.dtgAccounts.AllowUserToAddRows = false;
             this.dtgAccounts.AllowUserToDeleteRows = false;
+            this.dtgAccounts.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.dtgAccounts.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.AllCells;
             dataGridViewCellStyle1.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle1.BackColor = System.Drawing.SystemColors.Control;
@@ -274,6 +293,7 @@
             dataGridViewCellStyle2.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
             this.dtgAccounts.DefaultCellStyle = dataGridViewCellStyle2;
             this.dtgAccounts.Location = new System.Drawing.Point(8, 48);
+            this.dtgAccounts.MinimumSize = new System.Drawing.Size(744, 272);
             this.dtgAccounts.MultiSelect = false;
             this.dtgAccounts.Name = "dtgAccounts";
             this.dtgAccounts.ReadOnly = true;
@@ -338,11 +358,11 @@
             // tab2
             // 
             this.tab2.BackColor = System.Drawing.SystemColors.Control;
+            this.tab2.Controls.Add(this.btnSubmit);
             this.tab2.Controls.Add(this.btnClearGrid);
             this.tab2.Controls.Add(this.txtErrorLog);
             this.tab2.Controls.Add(this.lblAccountName);
             this.tab2.Controls.Add(this.tabControl1);
-            this.tab2.Controls.Add(this.materialRaisedButton1);
             this.tab2.Location = new System.Drawing.Point(4, 22);
             this.tab2.Name = "tab2";
             this.tab2.Size = new System.Drawing.Size(768, 446);
@@ -351,28 +371,26 @@
             // 
             // btnClearGrid
             // 
-            this.btnClearGrid.AutoSize = true;
+            this.btnClearGrid.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.btnClearGrid.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.btnClearGrid.Depth = 0;
-            this.btnClearGrid.Icon = null;
-            this.btnClearGrid.Location = new System.Drawing.Point(568, 400);
-            this.btnClearGrid.MouseState = MaterialSkin.MouseState.HOVER;
+            this.btnClearGrid.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnClearGrid.Location = new System.Drawing.Point(560, 400);
             this.btnClearGrid.Name = "btnClearGrid";
-            this.btnClearGrid.Primary = true;
-            this.btnClearGrid.Size = new System.Drawing.Size(97, 36);
+            this.btnClearGrid.Size = new System.Drawing.Size(105, 36);
             this.btnClearGrid.TabIndex = 9;
-            this.btnClearGrid.Text = "Clear Grid";
+            this.btnClearGrid.Text = "CLEAR GRID";
             this.btnClearGrid.UseVisualStyleBackColor = true;
             this.btnClearGrid.Click += new System.EventHandler(this.btnClearGrid_Click);
             // 
             // txtErrorLog
             // 
+            this.txtErrorLog.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left)));
             this.txtErrorLog.Location = new System.Drawing.Point(8, 400);
             this.txtErrorLog.Multiline = true;
             this.txtErrorLog.Name = "txtErrorLog";
             this.txtErrorLog.ReadOnly = true;
             this.txtErrorLog.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtErrorLog.Size = new System.Drawing.Size(496, 56);
+            this.txtErrorLog.Size = new System.Drawing.Size(496, 40);
             this.txtErrorLog.TabIndex = 8;
             // 
             // lblAccountName
@@ -388,6 +406,9 @@
             // 
             // tabControl1
             // 
+            this.tabControl1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl1.Controls.Add(this.tabPage4);
             this.tabControl1.Controls.Add(this.tabPage5);
             this.tabControl1.Controls.Add(this.tabPage6);
@@ -397,7 +418,7 @@
             this.tabControl1.Location = new System.Drawing.Point(0, 40);
             this.tabControl1.Name = "tabControl1";
             this.tabControl1.SelectedIndex = 0;
-            this.tabControl1.Size = new System.Drawing.Size(768, 352);
+            this.tabControl1.Size = new System.Drawing.Size(768, 408);
             this.tabControl1.TabIndex = 6;
             this.tabControl1.Selecting += new System.Windows.Forms.TabControlCancelEventHandler(this.tabControl1_Selecting);
             // 
@@ -410,13 +431,14 @@
             this.tabPage4.Location = new System.Drawing.Point(4, 22);
             this.tabPage4.Name = "tabPage4";
             this.tabPage4.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage4.Size = new System.Drawing.Size(760, 326);
+            this.tabPage4.Size = new System.Drawing.Size(760, 382);
             this.tabPage4.TabIndex = 0;
             this.tabPage4.Text = "Devices";
             this.tabPage4.UseVisualStyleBackColor = true;
             // 
             // lnkDeviceUploadTemplate
             // 
+            this.lnkDeviceUploadTemplate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkDeviceUploadTemplate.AutoSize = true;
             this.lnkDeviceUploadTemplate.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lnkDeviceUploadTemplate.Location = new System.Drawing.Point(520, 8);
@@ -429,6 +451,7 @@
             // 
             // lnkUploadDevices
             // 
+            this.lnkUploadDevices.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkUploadDevices.AutoSize = true;
             this.lnkUploadDevices.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lnkUploadDevices.Location = new System.Drawing.Point(688, 8);
@@ -452,6 +475,10 @@
             // 
             // dtgDevices
             // 
+            this.dtgDevices.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.dtgDevices.AutoSizeColumnsMode = System.Windows.Forms.DataGridViewAutoSizeColumnsMode.AllCells;
             dataGridViewCellStyle4.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle4.BackColor = System.Drawing.SystemColors.Control;
             dataGridViewCellStyle4.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -466,6 +493,8 @@
             this.DeviceModel,
             this.PartNumber,
             this.DeviceManufacturer,
+            this.DeviceAssociation,
+            this.DeviceInitialLocation,
             this.DeviceDelete});
             dataGridViewCellStyle6.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle6.BackColor = System.Drawing.SystemColors.Window;
@@ -485,7 +514,7 @@
             dataGridViewCellStyle7.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle7.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
             this.dtgDevices.RowHeadersDefaultCellStyle = dataGridViewCellStyle7;
-            this.dtgDevices.Size = new System.Drawing.Size(744, 288);
+            this.dtgDevices.Size = new System.Drawing.Size(744, 296);
             this.dtgDevices.TabIndex = 0;
             this.dtgDevices.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dtgDevices_CellContentClick);
             this.dtgDevices.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.dtgDevices_CellEndEdit);
@@ -494,49 +523,6 @@
             this.dtgDevices.CellValueChanged += new System.Windows.Forms.DataGridViewCellEventHandler(this.dtgDevices_CellValueChanged);
             this.dtgDevices.CurrentCellDirtyStateChanged += new System.EventHandler(this.dtgDevices_CurrentCellDirtyStateChanged);
             this.dtgDevices.DataError += new System.Windows.Forms.DataGridViewDataErrorEventHandler(this.dtgDevices_DataError);
-            // 
-            // SerialNumber
-            // 
-            this.SerialNumber.HeaderText = "Serial Number*";
-            this.SerialNumber.MinimumWidth = 100;
-            this.SerialNumber.Name = "SerialNumber";
-            this.SerialNumber.Width = 102;
-            // 
-            // DeviceModel
-            // 
-            this.DeviceModel.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
-            this.DeviceModel.DisplayStyle = System.Windows.Forms.DataGridViewComboBoxDisplayStyle.ComboBox;
-            this.DeviceModel.HeaderText = "Device Model";
-            this.DeviceModel.MinimumWidth = 80;
-            this.DeviceModel.Name = "DeviceModel";
-            this.DeviceModel.Width = 80;
-            // 
-            // PartNumber
-            // 
-            this.PartNumber.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
-            this.PartNumber.DisplayStyle = System.Windows.Forms.DataGridViewComboBoxDisplayStyle.ComboBox;
-            this.PartNumber.HeaderText = "Part Number";
-            this.PartNumber.MinimumWidth = 100;
-            this.PartNumber.Name = "PartNumber";
-            // 
-            // DeviceManufacturer
-            // 
-            dataGridViewCellStyle5.NullValue = "CalAmp";
-            this.DeviceManufacturer.DefaultCellStyle = dataGridViewCellStyle5;
-            this.DeviceManufacturer.DisplayStyle = System.Windows.Forms.DataGridViewComboBoxDisplayStyle.ComboBox;
-            this.DeviceManufacturer.HeaderText = "Manufacturer";
-            this.DeviceManufacturer.Items.AddRange(new object[] {
-            "CalAmp"});
-            this.DeviceManufacturer.Name = "DeviceManufacturer";
-            // 
-            // DeviceDelete
-            // 
-            this.DeviceDelete.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
-            this.DeviceDelete.HeaderText = "";
-            this.DeviceDelete.MinimumWidth = 100;
-            this.DeviceDelete.Name = "DeviceDelete";
-            this.DeviceDelete.Text = "Delete";
-            this.DeviceDelete.UseColumnTextForButtonValue = true;
             // 
             // tabPage5
             // 
@@ -547,13 +533,14 @@
             this.tabPage5.Location = new System.Drawing.Point(4, 22);
             this.tabPage5.Name = "tabPage5";
             this.tabPage5.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage5.Size = new System.Drawing.Size(760, 326);
+            this.tabPage5.Size = new System.Drawing.Size(760, 382);
             this.tabPage5.TabIndex = 1;
             this.tabPage5.Text = "Equipment";
             this.tabPage5.UseVisualStyleBackColor = true;
             // 
             // lnkEquipmentUploadTemplate
             // 
+            this.lnkEquipmentUploadTemplate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkEquipmentUploadTemplate.AutoSize = true;
             this.lnkEquipmentUploadTemplate.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lnkEquipmentUploadTemplate.Location = new System.Drawing.Point(520, 8);
@@ -566,6 +553,7 @@
             // 
             // lnkUploadEquipment
             // 
+            this.lnkUploadEquipment.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkUploadEquipment.AutoSize = true;
             this.lnkUploadEquipment.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lnkUploadEquipment.Location = new System.Drawing.Point(688, 8);
@@ -589,6 +577,9 @@
             // 
             // dtgEquipment
             // 
+            this.dtgEquipment.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             dataGridViewCellStyle8.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle8.BackColor = System.Drawing.SystemColors.Control;
             dataGridViewCellStyle8.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -624,7 +615,7 @@
             dataGridViewCellStyle10.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle10.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
             this.dtgEquipment.RowHeadersDefaultCellStyle = dataGridViewCellStyle10;
-            this.dtgEquipment.Size = new System.Drawing.Size(744, 288);
+            this.dtgEquipment.Size = new System.Drawing.Size(744, 296);
             this.dtgEquipment.TabIndex = 3;
             this.dtgEquipment.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dtgEquipment_CellContentClick);
             this.dtgEquipment.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.dtgEquipment_CellEndEdit);
@@ -692,13 +683,14 @@
             this.tabPage6.Location = new System.Drawing.Point(4, 22);
             this.tabPage6.Name = "tabPage6";
             this.tabPage6.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage6.Size = new System.Drawing.Size(760, 326);
+            this.tabPage6.Size = new System.Drawing.Size(760, 382);
             this.tabPage6.TabIndex = 2;
             this.tabPage6.Text = "Vehicles";
             this.tabPage6.UseVisualStyleBackColor = true;
             // 
             // lnkVehicleUploadTemplate
             // 
+            this.lnkVehicleUploadTemplate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkVehicleUploadTemplate.AutoSize = true;
             this.lnkVehicleUploadTemplate.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lnkVehicleUploadTemplate.Location = new System.Drawing.Point(520, 8);
@@ -711,6 +703,7 @@
             // 
             // lnkUploadVehicles
             // 
+            this.lnkUploadVehicles.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkUploadVehicles.AutoSize = true;
             this.lnkUploadVehicles.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lnkUploadVehicles.Location = new System.Drawing.Point(688, 8);
@@ -734,6 +727,9 @@
             // 
             // dtgVehicles
             // 
+            this.dtgVehicles.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             dataGridViewCellStyle11.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle11.BackColor = System.Drawing.SystemColors.Control;
             dataGridViewCellStyle11.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -769,7 +765,7 @@
             dataGridViewCellStyle13.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle13.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
             this.dtgVehicles.RowHeadersDefaultCellStyle = dataGridViewCellStyle13;
-            this.dtgVehicles.Size = new System.Drawing.Size(744, 288);
+            this.dtgVehicles.Size = new System.Drawing.Size(744, 296);
             this.dtgVehicles.TabIndex = 0;
             this.dtgVehicles.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dtgVehicles_CellContentClick);
             this.dtgVehicles.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.dtgVehicles_CellEndEdit);
@@ -833,13 +829,14 @@
             this.tabPage1.Controls.Add(this.dtgPeople);
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
-            this.tabPage1.Size = new System.Drawing.Size(760, 326);
+            this.tabPage1.Size = new System.Drawing.Size(760, 382);
             this.tabPage1.TabIndex = 3;
             this.tabPage1.Text = "People";
             this.tabPage1.UseVisualStyleBackColor = true;
             // 
             // lnkPeopleUploadTemplate
             // 
+            this.lnkPeopleUploadTemplate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkPeopleUploadTemplate.AutoSize = true;
             this.lnkPeopleUploadTemplate.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lnkPeopleUploadTemplate.Location = new System.Drawing.Point(520, 8);
@@ -851,6 +848,7 @@
             // 
             // lnkUploadPeople
             // 
+            this.lnkUploadPeople.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkUploadPeople.AutoSize = true;
             this.lnkUploadPeople.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lnkUploadPeople.Location = new System.Drawing.Point(688, 8);
@@ -874,6 +872,9 @@
             // 
             // dtgPeople
             // 
+            this.dtgPeople.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             dataGridViewCellStyle14.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle14.BackColor = System.Drawing.SystemColors.Control;
             dataGridViewCellStyle14.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -909,7 +910,7 @@
             dataGridViewCellStyle16.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle16.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
             this.dtgPeople.RowHeadersDefaultCellStyle = dataGridViewCellStyle16;
-            this.dtgPeople.Size = new System.Drawing.Size(744, 288);
+            this.dtgPeople.Size = new System.Drawing.Size(744, 296);
             this.dtgPeople.TabIndex = 1;
             this.dtgPeople.CellContentClick += new System.Windows.Forms.DataGridViewCellEventHandler(this.dtgPeople_CellContentClick);
             this.dtgPeople.CellEndEdit += new System.Windows.Forms.DataGridViewCellEventHandler(this.dtgPeople_CellEndEdit);
@@ -982,18 +983,21 @@
             this.tabPage2.Location = new System.Drawing.Point(4, 22);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage2.Size = new System.Drawing.Size(760, 326);
+            this.tabPage2.Size = new System.Drawing.Size(760, 382);
             this.tabPage2.TabIndex = 4;
             this.tabPage2.Text = "Models";
             // 
             // tabControl2
             // 
+            this.tabControl2.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.tabControl2.Controls.Add(this.tabPage7);
             this.tabControl2.Controls.Add(this.tabPage8);
             this.tabControl2.Location = new System.Drawing.Point(0, 8);
             this.tabControl2.Name = "tabControl2";
             this.tabControl2.SelectedIndex = 0;
-            this.tabControl2.Size = new System.Drawing.Size(760, 312);
+            this.tabControl2.Size = new System.Drawing.Size(760, 376);
             this.tabControl2.TabIndex = 7;
             // 
             // tabPage7
@@ -1004,13 +1008,16 @@
             this.tabPage7.Location = new System.Drawing.Point(4, 22);
             this.tabPage7.Name = "tabPage7";
             this.tabPage7.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage7.Size = new System.Drawing.Size(752, 286);
+            this.tabPage7.Size = new System.Drawing.Size(752, 350);
             this.tabPage7.TabIndex = 0;
             this.tabPage7.Text = "Equipment";
             this.tabPage7.UseVisualStyleBackColor = true;
             // 
             // dtgEquipmentModels
             // 
+            this.dtgEquipmentModels.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             dataGridViewCellStyle17.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle17.BackColor = System.Drawing.SystemColors.Control;
             dataGridViewCellStyle17.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -1020,6 +1027,11 @@
             dataGridViewCellStyle17.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
             this.dtgEquipmentModels.ColumnHeadersDefaultCellStyle = dataGridViewCellStyle17;
             this.dtgEquipmentModels.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+            this.dtgEquipmentModels.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
+            this.EModelName,
+            this.EModelManufacturer,
+            this.EModelDescription,
+            this.EModelDelete});
             dataGridViewCellStyle18.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle18.BackColor = System.Drawing.SystemColors.Window;
             dataGridViewCellStyle18.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
@@ -1028,7 +1040,7 @@
             dataGridViewCellStyle18.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle18.WrapMode = System.Windows.Forms.DataGridViewTriState.False;
             this.dtgEquipmentModels.DefaultCellStyle = dataGridViewCellStyle18;
-            this.dtgEquipmentModels.Location = new System.Drawing.Point(8, 40);
+            this.dtgEquipmentModels.Location = new System.Drawing.Point(8, 32);
             this.dtgEquipmentModels.Name = "dtgEquipmentModels";
             dataGridViewCellStyle19.Alignment = System.Windows.Forms.DataGridViewContentAlignment.MiddleLeft;
             dataGridViewCellStyle19.BackColor = System.Drawing.SystemColors.Control;
@@ -1038,14 +1050,40 @@
             dataGridViewCellStyle19.SelectionForeColor = System.Drawing.SystemColors.HighlightText;
             dataGridViewCellStyle19.WrapMode = System.Windows.Forms.DataGridViewTriState.True;
             this.dtgEquipmentModels.RowHeadersDefaultCellStyle = dataGridViewCellStyle19;
-            this.dtgEquipmentModels.Size = new System.Drawing.Size(736, 240);
+            this.dtgEquipmentModels.Size = new System.Drawing.Size(736, 272);
             this.dtgEquipmentModels.TabIndex = 7;
+            // 
+            // EModelName
+            // 
+            this.EModelName.HeaderText = "Model";
+            this.EModelName.Name = "EModelName";
+            // 
+            // EModelManufacturer
+            // 
+            this.EModelManufacturer.HeaderText = "Manufacturer";
+            this.EModelManufacturer.Name = "EModelManufacturer";
+            // 
+            // EModelDescription
+            // 
+            this.EModelDescription.HeaderText = "Description";
+            this.EModelDescription.Name = "EModelDescription";
+            // 
+            // EModelDelete
+            // 
+            this.EModelDelete.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
+            this.EModelDelete.HeaderText = "";
+            this.EModelDelete.MinimumWidth = 100;
+            this.EModelDelete.Name = "EModelDelete";
+            this.EModelDelete.Text = "Delete";
+            this.EModelDelete.UseColumnTextForButtonValue = true;
             // 
             // lnkEquipModelTemplate
             // 
+            this.lnkEquipModelTemplate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkEquipModelTemplate.AutoSize = true;
+            this.lnkEquipModelTemplate.Enabled = false;
             this.lnkEquipModelTemplate.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lnkEquipModelTemplate.Location = new System.Drawing.Point(488, 8);
+            this.lnkEquipModelTemplate.Location = new System.Drawing.Point(512, 8);
             this.lnkEquipModelTemplate.Name = "lnkEquipModelTemplate";
             this.lnkEquipModelTemplate.Size = new System.Drawing.Size(157, 18);
             this.lnkEquipModelTemplate.TabIndex = 5;
@@ -1054,9 +1092,11 @@
             // 
             // lnkEquipModelUpload
             // 
+            this.lnkEquipModelUpload.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkEquipModelUpload.AutoSize = true;
+            this.lnkEquipModelUpload.Enabled = false;
             this.lnkEquipModelUpload.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lnkEquipModelUpload.Location = new System.Drawing.Point(664, 8);
+            this.lnkEquipModelUpload.Location = new System.Drawing.Point(680, 8);
             this.lnkEquipModelUpload.Name = "lnkEquipModelUpload";
             this.lnkEquipModelUpload.Size = new System.Drawing.Size(61, 18);
             this.lnkEquipModelUpload.TabIndex = 6;
@@ -1077,9 +1117,11 @@
             // 
             // lnkVehicleModelTemplate
             // 
+            this.lnkVehicleModelTemplate.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkVehicleModelTemplate.AutoSize = true;
+            this.lnkVehicleModelTemplate.Enabled = false;
             this.lnkVehicleModelTemplate.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lnkVehicleModelTemplate.Location = new System.Drawing.Point(488, 8);
+            this.lnkVehicleModelTemplate.Location = new System.Drawing.Point(512, 8);
             this.lnkVehicleModelTemplate.Name = "lnkVehicleModelTemplate";
             this.lnkVehicleModelTemplate.Size = new System.Drawing.Size(157, 18);
             this.lnkVehicleModelTemplate.TabIndex = 7;
@@ -1088,9 +1130,11 @@
             // 
             // lnkVehicleModelUpload
             // 
+            this.lnkVehicleModelUpload.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
             this.lnkVehicleModelUpload.AutoSize = true;
+            this.lnkVehicleModelUpload.Enabled = false;
             this.lnkVehicleModelUpload.Font = new System.Drawing.Font("Microsoft Sans Serif", 11F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.lnkVehicleModelUpload.Location = new System.Drawing.Point(664, 8);
+            this.lnkVehicleModelUpload.Location = new System.Drawing.Point(680, 8);
             this.lnkVehicleModelUpload.Name = "lnkVehicleModelUpload";
             this.lnkVehicleModelUpload.Size = new System.Drawing.Size(61, 18);
             this.lnkVehicleModelUpload.TabIndex = 8;
@@ -1101,29 +1145,28 @@
             // 
             this.tabPage3.Location = new System.Drawing.Point(4, 22);
             this.tabPage3.Name = "tabPage3";
-            this.tabPage3.Size = new System.Drawing.Size(760, 326);
+            this.tabPage3.Size = new System.Drawing.Size(760, 382);
             this.tabPage3.TabIndex = 5;
             this.tabPage3.Text = "Types";
             this.tabPage3.UseVisualStyleBackColor = true;
             // 
-            // materialRaisedButton1
+            // btnSubmit
             // 
-            this.materialRaisedButton1.AutoSize = true;
-            this.materialRaisedButton1.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-            this.materialRaisedButton1.Depth = 0;
-            this.materialRaisedButton1.Icon = null;
-            this.materialRaisedButton1.Location = new System.Drawing.Point(683, 400);
-            this.materialRaisedButton1.MouseState = MaterialSkin.MouseState.HOVER;
-            this.materialRaisedButton1.Name = "materialRaisedButton1";
-            this.materialRaisedButton1.Primary = true;
-            this.materialRaisedButton1.Size = new System.Drawing.Size(71, 36);
-            this.materialRaisedButton1.TabIndex = 1;
-            this.materialRaisedButton1.Text = "Submit";
-            this.materialRaisedButton1.UseVisualStyleBackColor = true;
-            this.materialRaisedButton1.Click += new System.EventHandler(this.materialRaisedButton1_Click);
+            this.btnSubmit.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
+            this.btnSubmit.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+            this.btnSubmit.Font = new System.Drawing.Font("Microsoft Sans Serif", 8.25F, System.Drawing.FontStyle.Bold, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.btnSubmit.Location = new System.Drawing.Point(680, 400);
+            this.btnSubmit.Name = "btnSubmit";
+            this.btnSubmit.Size = new System.Drawing.Size(73, 36);
+            this.btnSubmit.TabIndex = 1;
+            this.btnSubmit.Text = "IMPORT";
+            this.btnSubmit.UseVisualStyleBackColor = true;
+            this.btnSubmit.Click += new System.EventHandler(this.btnSubmit_Click);
             // 
             // materialTabSelector1
             // 
+            this.materialTabSelector1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
             this.materialTabSelector1.BaseTabControl = this.materialTabControl1;
             this.materialTabSelector1.Depth = 0;
             this.materialTabSelector1.Location = new System.Drawing.Point(0, 24);
@@ -1141,7 +1184,6 @@
             this.statusStrip1.Location = new System.Drawing.Point(0, 552);
             this.statusStrip1.Name = "statusStrip1";
             this.statusStrip1.Size = new System.Drawing.Size(800, 22);
-            this.statusStrip1.SizingGrip = false;
             this.statusStrip1.TabIndex = 4;
             this.statusStrip1.Text = "statusStrip1";
             // 
@@ -1256,12 +1298,72 @@
             // 
             // lblVersion
             // 
+            this.lblVersion.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
             this.lblVersion.Location = new System.Drawing.Point(680, 556);
             this.lblVersion.Name = "lblVersion";
             this.lblVersion.Size = new System.Drawing.Size(112, 18);
             this.lblVersion.TabIndex = 6;
             this.lblVersion.Text = "version";
             this.lblVersion.TextAlign = System.Drawing.ContentAlignment.TopRight;
+            // 
+            // SerialNumber
+            // 
+            this.SerialNumber.HeaderText = "Serial Number*";
+            this.SerialNumber.MinimumWidth = 100;
+            this.SerialNumber.Name = "SerialNumber";
+            this.SerialNumber.Width = 102;
+            // 
+            // DeviceModel
+            // 
+            this.DeviceModel.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
+            this.DeviceModel.DisplayStyle = System.Windows.Forms.DataGridViewComboBoxDisplayStyle.ComboBox;
+            this.DeviceModel.HeaderText = "Device Model";
+            this.DeviceModel.MinimumWidth = 80;
+            this.DeviceModel.Name = "DeviceModel";
+            this.DeviceModel.Width = 80;
+            // 
+            // PartNumber
+            // 
+            this.PartNumber.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
+            this.PartNumber.DisplayStyle = System.Windows.Forms.DataGridViewComboBoxDisplayStyle.ComboBox;
+            this.PartNumber.HeaderText = "Part Number";
+            this.PartNumber.MinimumWidth = 100;
+            this.PartNumber.Name = "PartNumber";
+            // 
+            // DeviceManufacturer
+            // 
+            dataGridViewCellStyle5.NullValue = "CalAmp";
+            this.DeviceManufacturer.DefaultCellStyle = dataGridViewCellStyle5;
+            this.DeviceManufacturer.DisplayStyle = System.Windows.Forms.DataGridViewComboBoxDisplayStyle.ComboBox;
+            this.DeviceManufacturer.HeaderText = "Manufacturer";
+            this.DeviceManufacturer.Items.AddRange(new object[] {
+            "CalAmp"});
+            this.DeviceManufacturer.Name = "DeviceManufacturer";
+            this.DeviceManufacturer.Width = 76;
+            // 
+            // DeviceAssociation
+            // 
+            this.DeviceAssociation.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
+            this.DeviceAssociation.DisplayStyle = System.Windows.Forms.DataGridViewComboBoxDisplayStyle.ComboBox;
+            this.DeviceAssociation.HeaderText = "Associated Asset";
+            this.DeviceAssociation.MinimumWidth = 100;
+            this.DeviceAssociation.Name = "DeviceAssociation";
+            this.DeviceAssociation.Visible = false;
+            // 
+            // DeviceInitialLocation
+            // 
+            this.DeviceInitialLocation.HeaderText = "Initial Location";
+            this.DeviceInitialLocation.Name = "DeviceInitialLocation";
+            this.DeviceInitialLocation.Visible = false;
+            // 
+            // DeviceDelete
+            // 
+            this.DeviceDelete.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
+            this.DeviceDelete.HeaderText = "";
+            this.DeviceDelete.MinimumWidth = 100;
+            this.DeviceDelete.Name = "DeviceDelete";
+            this.DeviceDelete.Text = "Delete";
+            this.DeviceDelete.UseColumnTextForButtonValue = true;
             // 
             // Form1
             // 
@@ -1273,10 +1375,9 @@
             this.Controls.Add(this.menuStrip1);
             this.Controls.Add(this.materialTabSelector1);
             this.Controls.Add(this.materialTabControl1);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.menuStrip1;
-            this.MaximizeBox = false;
+            this.MinimumSize = new System.Drawing.Size(816, 613);
             this.Name = "Form1";
             this.Text = "PULSE Import";
             this.Load += new System.EventHandler(this.Form1_Load);
@@ -1333,7 +1434,7 @@
         private System.Windows.Forms.DataGridViewTextBoxColumn TID;
         private System.Windows.Forms.Panel grpAccounts;
         private System.Windows.Forms.TabPage tab2;
-        private MaterialSkin.Controls.MaterialRaisedButton materialRaisedButton1;
+        private System.Windows.Forms.Button btnSubmit;
         private System.Windows.Forms.DataGridView dtgDevices;
         private System.Windows.Forms.Label materialLabel2;
         private System.Windows.Forms.Label materialLabel3;
@@ -1373,11 +1474,6 @@
         private System.Windows.Forms.ToolStripMenuItem deleteToolStripMenuItem;
         private System.Windows.Forms.Panel panel1;
         private System.Windows.Forms.TextBox txtAccountSearch;
-        private System.Windows.Forms.DataGridViewTextBoxColumn SerialNumber;
-        private System.Windows.Forms.DataGridViewComboBoxColumn DeviceModel;
-        private System.Windows.Forms.DataGridViewComboBoxColumn PartNumber;
-        private System.Windows.Forms.DataGridViewComboBoxColumn DeviceManufacturer;
-        private System.Windows.Forms.DataGridViewButtonColumn DeviceDelete;
         private System.Windows.Forms.DataGridViewTextBoxColumn VehicleID;
         private System.Windows.Forms.DataGridViewTextBoxColumn VehicleVIN;
         private System.Windows.Forms.DataGridViewTextBoxColumn VehicleYear;
@@ -1386,7 +1482,7 @@
         private System.Windows.Forms.DataGridViewComboBoxColumn VehicleType;
         private System.Windows.Forms.DataGridViewButtonColumn VehicleDelete;
         private System.Windows.Forms.TextBox txtErrorLog;
-        private MaterialSkin.Controls.MaterialRaisedButton btnClearGrid;
+        private System.Windows.Forms.Button btnClearGrid;
         private System.Windows.Forms.DataGridViewTextBoxColumn FirstName;
         private System.Windows.Forms.DataGridViewTextBoxColumn LastName;
         private System.Windows.Forms.DataGridViewTextBoxColumn EmployeeID;
@@ -1414,6 +1510,17 @@
         private System.Windows.Forms.TabPage tabPage3;
         private System.Windows.Forms.DataGridView dtgEquipmentModels;
         private System.Windows.Forms.Button btnNext;
+        private System.Windows.Forms.DataGridViewTextBoxColumn EModelName;
+        private System.Windows.Forms.DataGridViewTextBoxColumn EModelManufacturer;
+        private System.Windows.Forms.DataGridViewTextBoxColumn EModelDescription;
+        private System.Windows.Forms.DataGridViewButtonColumn EModelDelete;
+        private System.Windows.Forms.DataGridViewTextBoxColumn SerialNumber;
+        private System.Windows.Forms.DataGridViewComboBoxColumn DeviceModel;
+        private System.Windows.Forms.DataGridViewComboBoxColumn PartNumber;
+        private System.Windows.Forms.DataGridViewComboBoxColumn DeviceManufacturer;
+        private System.Windows.Forms.DataGridViewComboBoxColumn DeviceAssociation;
+        private System.Windows.Forms.DataGridViewTextBoxColumn DeviceInitialLocation;
+        private System.Windows.Forms.DataGridViewButtonColumn DeviceDelete;
     }
 }
 

@@ -41,13 +41,17 @@ namespace PULSEImport
         //    "903-4330-000", "903-4430-000", "903-4242-000", "903-6030-000"
         //};
 
-        private List<Model> EquipmentModels = new List<Model>();
-        private List<OculusType> EquipmentTypes = new List<OculusType>();
+        private IList<Model> EquipmentModels;
+        private IList<OculusType> EquipmentTypes;
 
-        private List<Model> VehicleModels { get; set; }
-        private List<OculusType> VehicleTypes { get; set; }
+        private IList<Model> VehicleModels { get; set; }
+        private IList<OculusType> VehicleTypes { get; set; }
 
         public List<string> AccountDevices { get; set; }
+        public List<Vehicle> AccountVehicles { get; set; }
+        public List<Asset> AccountEquipment { get; set; }
+
+        public List<DropDownItem> AccountAssets { get; set; }
 
         public Form1()
         {
@@ -76,6 +80,7 @@ namespace PULSEImport
         {
             var environments = new List<DropDownItem>();
 
+            environments.Add(new DropDownItem() { Value = "QA", Text = "QA" });
             environments.Add(new DropDownItem() { Value = "Staging", Text = "Staging" });
             environments.Add(new DropDownItem() { Value = "Production", Text = "Production" });
             environments.Add(new DropDownItem() { Value = "Production (EU)", Text = "Production (EU)" });
@@ -179,7 +184,7 @@ namespace PULSEImport
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
             // Request Accounts 
-            var jsonResponse = oculusApiRequest.ExecuteGET(_configData.ApiUrl + "accounts/v5/?name=" + account);
+            var jsonResponse = oculusApiRequest.ExecuteGET(_configData.ApiUrl + "accounts/v4/?name=" + account);
 
             var accounts = JsonConvert.DeserializeObject<OculusAPI.Models.Accounts>(jsonResponse.ToString());
 
@@ -261,9 +266,15 @@ namespace PULSEImport
             _accountTId = dtgAccounts.SelectedRows[0].Cells[1].Value.ToString();
             lblAccountName.Text = dtgAccounts.SelectedRows[0].Cells[0].Value.ToString();
 
+            // Hide Models and Type temporarily
+            ((Control)tabControl1.TabPages[4]).Visible = false;
+            ((Control)tabControl1.TabPages[5]).Visible = false;
+
             SetupImportGrids();
 
             LoadExistingDevices();
+            LoadExistingVehicles();
+            LoadExistingEquipment();
 
             materialTabControl1.SelectTab(1);
 
@@ -315,6 +326,8 @@ namespace PULSEImport
             ShowEquipmentTypes(equpTypes);
             ShowVehicleModels(vehModels);
             ShowVehicleTypes(vehTypes);
+
+            ShowAssets();
 
             foreach (TabPage tp in tabControl1.TabPages)
             {
@@ -382,7 +395,7 @@ namespace PULSEImport
                     DeviceModels = modelList.OrderBy(m => m.typeData.mdl).ToList();
 
                     DeviceModel.DataSource = DeviceModels;
-                    DeviceModel.DisplayMember = "modelName";
+                    DeviceModel.DisplayMember = "name";
                     DeviceModel.ValueMember = "tId";
                 }
             }
@@ -395,6 +408,50 @@ namespace PULSEImport
             }
 
             LoadDevicePartNumbers();
+        }
+
+        private void ShowAssets()
+        {
+            try
+            {
+                //var deviceModels = models.types;
+
+                var assetList = new List<DropDownItem>();
+
+                foreach (var equip in AccountEquipment)
+                {
+                    assetList.Add(new DropDownItem()
+                    {
+                        Text = string.Format("E: {0} ({1})", equip.name, equip.mdl),
+                        Value = equip.tId
+                    });
+                }
+
+                foreach (var veh in AccountVehicles)
+                {
+                    assetList.Add(new DropDownItem()
+                    {
+                        Text = string.Format("V: {0} ({1} {2})", veh.name, veh.mnf, veh.mdl),
+                        Value = veh.tId
+                    });
+                }
+
+                if (assetList != null && assetList.Any())
+                {
+                    AccountAssets = assetList.OrderBy(a => a.Text).ToList();
+
+                    DeviceAssociation.DataSource = AccountAssets;
+                    DeviceAssociation.DisplayMember = "Text";
+                    DeviceAssociation.ValueMember = "Value";
+                }
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                Log4NetHelper.LogError(Logger, e);
+
+                // throw;
+            }
         }
 
         private async void LoadExistingDevices()
@@ -416,6 +473,44 @@ namespace PULSEImport
             }
         }
 
+        private async void LoadExistingVehicles()
+        {
+            try
+            {
+                var vehicles = await Task.Run(() => QueryExistingVehicles());
+
+                AccountVehicles = new List<Vehicle>();
+
+                AccountVehicles.AddRange(vehicles.vehicles.ToList());
+
+                Console.WriteLine(AccountVehicles.Count);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                //throw;
+            }
+        }
+
+        private async void LoadExistingEquipment()
+        {
+            try
+            {
+                var assets = await Task.Run(() => QueryExistingEquipment());
+
+                AccountEquipment = new List<Asset>();
+
+                AccountEquipment.AddRange(assets.assets.ToList());
+
+                Console.WriteLine(AccountEquipment.Count);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                //throw;
+            }
+        }
+
         private Sensors QueryExistingSensors()
         {
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
@@ -429,6 +524,45 @@ namespace PULSEImport
             return devices;
         }
 
+        private Vehicles QueryExistingVehicles()
+        {
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+            //var jsonResponse =
+            //    oculusApiRequest.ExecuteGET(_configData.ApiUrl +
+            //                            string.Format(
+            //                                "sensors/associations/vehicles?accountTId={0}&associations.type=INSTALLED_IN&associations.startDt=/2015-01-01T00:00:00Z",
+            //                                _accountTId));
+
+            var jsonResponse =
+                    oculusApiRequest.ExecuteGET(_configData.ApiUrl +
+                                                string.Format("vehicles/v5/?accountTId={0}", _accountTId));
+
+            var vehicles = JsonConvert.DeserializeObject<Vehicles>(jsonResponse.ToString());
+
+            return vehicles;
+        }
+
+        private Assets QueryExistingEquipment()
+        {
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+            //var jsonResponse =
+            //    oculusApiRequest.ExecuteGET(_configData.ApiUrl +
+            //                                string.Format(
+            //                                    "sensors/associations/assets?accountTId={0}&associations.type=INSTALLED_IN&associations.startDt=/2015-01-01T00:00:00Z",
+            //                                    _accountTId));
+
+            var jsonResponse =
+                oculusApiRequest.ExecuteGET(_configData.ApiUrl +
+                                            string.Format("assets/v4/?accountTId={0}", _accountTId));
+
+            var equipment = JsonConvert.DeserializeObject<Assets>(jsonResponse.ToString());
+
+            return equipment;
+        }
+
+        #region Models & Types
         private Models LoadEquipmentModels()
         {
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
@@ -521,6 +655,7 @@ namespace PULSEImport
             VehicleType.DisplayMember = "name";
             VehicleType.ValueMember = "name"; // "tId";
         }
+        #endregion
 
         private void dtgAccounts_KeyDown(object sender, KeyEventArgs e)
         {
@@ -685,7 +820,7 @@ namespace PULSEImport
                             var equipModel = cells[4];
 
                             var model = EquipmentModels.SingleOrDefault(em =>
-                                em.modelName.Equals(equipModel.ToString(), StringComparison.InvariantCultureIgnoreCase));
+                                em.name.Equals(equipModel.ToString(), StringComparison.InvariantCultureIgnoreCase));
 
                             if (model != null)
                             {
@@ -786,7 +921,7 @@ namespace PULSEImport
                             var vehicleModel = cells[4];
 
                             var model = VehicleModels.SingleOrDefault(vm =>
-                                vm.modelName.Equals(vehicleModel.ToString(), StringComparison.InvariantCultureIgnoreCase));
+                                vm.name.Equals(vehicleModel.ToString(), StringComparison.InvariantCultureIgnoreCase));
 
                             if (model != null)
                             {
@@ -928,12 +1063,12 @@ namespace PULSEImport
         #endregion
 
         // Submit button
-        private void materialRaisedButton1_Click(object sender, EventArgs e)
+        private void btnSubmit_Click(object sender, EventArgs e)
         {
             if (MessageBox.Show("Are you sure you want to import these items?", "Confirm Import",
                     MessageBoxButtons.OKCancel) == DialogResult.OK)
             {
-                var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+                //var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
                 if (dtgDevices.Rows.Count > 0)
                     ProcessDevices();
@@ -1409,14 +1544,21 @@ namespace PULSEImport
 
                     if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
                     {
-                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
-
                         Log4NetHelper.LogDebug(Logger, response.ToString());
+
+                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
 
                         if (oculusResponse.statusCode == "201")
                         {
                             var msg = string.Format("{0} device{1} added!", sensors.Count,
                                 sensors.Count > 1 ? "s" : "");
+
+                            //// TODO: Setup associations...
+                            //// TODO: Can't deliver yet until we can get device TIds
+                            //AssociateDevices(oculusResponse);
+
+                            // TODO: Generate the 1st event
+
 
                             UpdateStatusBar(msg, false);
 
@@ -1432,14 +1574,14 @@ namespace PULSEImport
 
                             MessageBox.Show("There was a problem importing the data.");
 
-                            UpdateStatusBar("");
+                            UpdateStatusBar("An error occurred");
                         }
                     }
                     else
                     {
                         MessageBox.Show("There was a problem importing the data.");
 
-                        UpdateStatusBar("");
+                        UpdateStatusBar("An error occurred");
                     }
                 }
                 catch (Exception exception)
@@ -1455,12 +1597,89 @@ namespace PULSEImport
             }
         }
 
-        private void LogText(string s)
+        private void AssociateDevices(OculusResponse oculusResponse)
         {
-            if (txtErrorLog.Text.Length > 0)
-                txtErrorLog.Text += Environment.NewLine;
+            var associations = new associations();
 
-            txtErrorLog.Text += s;
+            // How do we get the TId for the devices that were just added?
+            // The POST response just lists TId but with not context to the device details...
+
+            // "associations/v4"
+            foreach (DataGridViewRow row in dtgDevices.Rows)
+            {
+                var sn = SafeType.SafeString(row.Cells[0].Value);
+
+                DataGridViewComboBoxCell asset = (DataGridViewComboBoxCell)row.Cells[4];
+
+                if (asset != null && !string.IsNullOrEmpty(SafeType.SafeString(asset.Value)))
+                {
+                    // Get the newly added sensor
+                    var sensor = GetSensorTIdBySN(sn);
+
+                    if (sensor?.tId != null && !string.IsNullOrEmpty(sensor.tId))
+                    {
+                        var assetTId = SafeType.SafeString(asset.Value);
+
+                        associations.Associations.Add(new association()
+                        {
+                            accountTId = _accountTId,
+                            type = "INSTALLED_IN",
+                            name = "Sensor_Vehicle_Association",
+                            descr = string.Format("{0} installed in {1}", sensor.tId, assetTId),
+                            lifeState = "ACTV",
+                            pmryTId = sensor.tId,
+                            scdyTId = assetTId,
+                            startDt = Convert.ToDateTime(DateTime.Now).ToString("yyyy-MM-ddTHH:mm:ssZ")
+                        });
+                    }
+                }
+            }
+
+            if (associations.Associations.Any())
+            {
+                var body = "{ \"associations\": " + JsonConvert.SerializeObject(associations, Formatting.None,
+                               new JsonSerializerSettings
+                               {
+                                   NullValueHandling = NullValueHandling.Ignore
+                               }) + " }";
+
+                var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+                UpdateStatusBar("Associating devices...", true);
+
+                var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "associations/v5", body);
+
+                if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
+                {
+                    Log4NetHelper.LogDebug(Logger, response.ToString());
+
+                    var associationResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
+
+                    if (associationResponse.statusCode != "201")
+                    {
+                        LogText(string.Format("{0}: {1}",
+                            SafeType.SafeString(associationResponse.statusCode),
+                            SafeType.SafeString(associationResponse.statusDescr)));
+
+                        MessageBox.Show("There was a problem importing the data.");
+                    }
+                }
+            }
+
+        }
+
+        private Sensor GetSensorTIdBySN(string sn)
+        {
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+            // Request Accounts 
+            var jsonResponse = oculusApiRequest.ExecuteGET(
+                _configData.ApiUrl +
+                string.Format("sensors/v5?accountTId={0}&sn={1}", _accountTId, sn));
+
+            var sensors = JsonConvert.DeserializeObject<OculusAPI.Models.Sensor>(jsonResponse.ToString());
+
+            return sensors;
         }
 
         // Process EQUIPMENT
@@ -1756,6 +1975,23 @@ namespace PULSEImport
         }
 
 
+        // Process Equipment Models
+        // TODO: 
+
+
+        // Process Equipment Types
+        // TODO:
+
+
+        // Process Vehicle Models
+        // TODO: 
+
+
+        // Process Vehicle Types
+        // TODO: 
+
+
+        #region UI Logic
         private void tabControl1_Selecting(object sender, TabControlCancelEventArgs e)
         {
         }
@@ -1896,15 +2132,24 @@ namespace PULSEImport
             }
         }
 
+        private void LogText(string s)
+        {
+            if (txtErrorLog.Text.Length > 0)
+                txtErrorLog.Text += Environment.NewLine;
+
+            txtErrorLog.Text += s;
+        }
+
         private void timer1_Tick(object sender, EventArgs e)
         {
             //InstallUpdateSyncWithInfo();
             LoadExistingDevices();
         }
+        #endregion
 
     }
 
-    internal class DropDownItem
+    public class DropDownItem
     {
         public string Value { get; set; }
         public string Text { get; set; }
@@ -1921,8 +2166,9 @@ namespace PULSEImport
         public string pn { get; set; }
     }
 
-    internal class equipment
+    public class equipment
     {
+        public string tId { get; set; }
         public string accountTId { get; set; }
         public string name { get; set; }
         public string sn { get; set; }
@@ -1935,8 +2181,16 @@ namespace PULSEImport
         public string typeTId { get; set; }
     }
 
-    internal class vehicle
+    // I know...
+    public class equipments
     {
+        public MetaInfo MetaInfo { get; set; }
+        public List<equipment> Assets { get; set; }
+    }
+
+    public class vehicle
+    {
+        public string tId { get; set; }
         public string accountTId { get; set; }
         public string name { get; set; }
         public string sn { get; set; }
@@ -1947,6 +2201,12 @@ namespace PULSEImport
         public string mnf { get; set; }
         public string mdlTId { get; set; }
         public string typeTId { get; set; }
+    }
+
+    public class vehicles
+    {
+        public MetaInfo MetaInfo { get; set; }
+        public List<vehicle> Vehicles { get; set; }
     }
 
     internal class person
@@ -1958,6 +2218,31 @@ namespace PULSEImport
         public string email { get; set; }
         public string phoneNumber { get; set; }
         public string phoneType { get; set; }
+    }
+
+    public class association
+    {
+        public string tId { get; set; }
+        public string accountTId { get; set; }
+        public string type { get; set; }
+        public string name { get; set; }
+        public string descr { get; set; }
+        public string lifeState { get; set; }
+        public string pmryTId { get; set; }
+        public string scdyTId { get; set; }
+        public string startDt { get; set; }
+        public string endDt { get; set; }
+    }
+
+    public class associations
+    {
+        public MetaInfo MetaInfo { get; set; }
+        public List<association> Associations { get; set; }
+
+        public associations()
+        {
+            Associations = new List<association>();
+        }
     }
 
     //internal class AccountDisplay
