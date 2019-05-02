@@ -11,6 +11,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
@@ -47,11 +48,14 @@ namespace PULSEImport
         private IList<Model> VehicleModels { get; set; }
         private IList<OculusType> VehicleTypes { get; set; }
 
-        public List<string> AccountDevices { get; set; }
+        public List<Sensor> AccountDevices { get; set; }
         public List<Vehicle> AccountVehicles { get; set; }
         public List<Asset> AccountEquipment { get; set; }
+        public List<Person> AccountPeople { get; set; }
 
         public List<DropDownItem> AccountAssets { get; set; }
+
+        public List<Model> AccountModels { get; set; }
 
         public Form1()
         {
@@ -250,6 +254,8 @@ namespace PULSEImport
 
                 statusStrip1.Refresh();
             }
+
+            Console.WriteLine("Statusbar Message: " + lblStatus.Text);
         }
 
         private void dtgAccounts_SelectionChanged(object sender, EventArgs e)
@@ -266,19 +272,45 @@ namespace PULSEImport
             _accountTId = dtgAccounts.SelectedRows[0].Cells[1].Value.ToString();
             lblAccountName.Text = dtgAccounts.SelectedRows[0].Cells[0].Value.ToString();
 
-            // Hide Models and Type temporarily
-            ((Control)tabControl1.TabPages[4]).Visible = false;
-            ((Control)tabControl1.TabPages[5]).Visible = false;
+            foreach (TabPage tp in tabControl1.TabPages)
+            {
+                ((Control)tp).Enabled = false;
 
-            SetupImportGrids();
+                foreach (Control ctrl in tp.Controls)
+                {
+                    ctrl.Enabled = false;
+                }
+            }
 
-            LoadExistingDevices();
-            LoadExistingVehicles();
-            LoadExistingEquipment();
+            materialTabSelector1.Enabled = false;
 
+            // Move to Import tab
             materialTabControl1.SelectTab(1);
 
-            timer1.Enabled = true;
+            UpdateStatusBar("Setting up grids...", true);
+
+
+            //await Task.Run(() => LoadExistingDevices());
+            //await Task.Run(() => LoadExistingVehicles());
+            //await Task.Run(() => LoadExistingEquipment());
+            //await Task.Run(() => LoadExistingPeople());
+
+            await Task.Run(() => SetupImportGrids());
+
+            //timer1.Enabled = true;
+            UpdateStatusBar("Ready for imports!");
+
+            foreach (TabPage tp in tabControl1.TabPages)
+            {
+                ((Control)tp).Enabled = true;
+
+                foreach (Control ctrl in tp.Controls)
+                {
+                    ctrl.Enabled = true;
+                }
+            }
+
+            materialTabSelector1.Enabled = true;
         }
 
         private void materialTabControl1_SelectedIndexChanged(object sender, EventArgs e)
@@ -286,6 +318,14 @@ namespace PULSEImport
             if (dtgAccounts.SelectedRows.Count == 0)
             {
                 materialTabControl1.SelectTab(0);
+            }
+
+            if (materialTabControl1.SelectedIndex == 2)
+            {
+                lblDeviceCount.Text = AccountDevices.Count.ToString();
+                lblEquipmentCount.Text = AccountEquipment.Count.ToString();
+                lblVehicleCount.Text = AccountVehicles.Count.ToString();
+                lblPeopleCount.Text = AccountPeople.Count.ToString();
             }
         }
 
@@ -300,46 +340,25 @@ namespace PULSEImport
         /* -- Import Data Tab --  */
         private async void SetupImportGrids()
         {
-            UpdateStatusBar("Setting up grids...", true);
+            Console.WriteLine("SetupImportGrids");
 
-            foreach (TabPage tp in tabControl1.TabPages)
-            {
-                ((Control)tp).Enabled = false;
-
-                foreach (Control ctrl in tp.Controls)
-                {
-                    ctrl.Enabled = false;
-                }
-            }
-
-            Models models = await Task.Run(() => LoadDeviceModels());
+            Models models = LoadDeviceModels(); // await Task.Run(() => LoadDeviceModels());
 
             ShowDeviceModels(models);
 
-            Models equpModels = await Task.Run(() => LoadEquipmentModels());
-            OculusTypes equpTypes = await Task.Run(() => LoadEquipmentTypes());
+            List<Model> equipModels = LoadEquipmentModels(); // await Task.Run(() => LoadEquipmentModels());
+            OculusTypes equipTypes = LoadEquipmentTypes(); //await Task.Run(() => LoadEquipmentTypes());
 
-            Models vehModels = await Task.Run(() => LoadVehicleModels());
-            OculusTypes vehTypes = await Task.Run(() => LoadVehicleTypes());
+            Models vehModels = LoadVehicleModels(); // await Task.Run(() => LoadVehicleModels());
+            OculusTypes vehTypes = LoadVehicleTypes(); // await Task.Run(() => LoadVehicleTypes());
 
-            ShowEquipmentModels(equpModels);
-            ShowEquipmentTypes(equpTypes);
+            ShowEquipmentModels(new Models() { types = equipModels });
+            ShowEquipmentTypes(equipTypes);
             ShowVehicleModels(vehModels);
             ShowVehicleTypes(vehTypes);
 
-            ShowAssets();
-
-            foreach (TabPage tp in tabControl1.TabPages)
-            {
-                ((Control)tp).Enabled = true;
-
-                foreach (Control ctrl in tp.Controls)
-                {
-                    ctrl.Enabled = true;
-                }
-            }
-
-            UpdateStatusBar("Ready for imports!");
+            // TODO: Not quite ready. Removing pre-loading objects
+            // ShowAssets();
         }
 
         private void LoadDevicePartNumbers()
@@ -366,6 +385,8 @@ namespace PULSEImport
 
         private Models LoadDeviceModels()
         {
+            Console.WriteLine("LoadDeviceModels");
+
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
             var oculusTId = _configData.OculusTId; // "58240ee5e4b01e7825f67da6";
@@ -456,15 +477,27 @@ namespace PULSEImport
 
         private async void LoadExistingDevices()
         {
+            Console.WriteLine("LoadExistingDevices");
+
             try
             {
-                var devices = await Task.Run(() => QueryExistingSensors());
+                var deviceCount = 0;
+                AccountDevices = new List<Sensor>();
+                var pageIndex = 0;
 
-                AccountDevices = new List<string>();
+                do
+                {
+                    pageIndex++;
 
-                AccountDevices.AddRange(devices.sensors.Select(d => d.sn));
+                    var devices = QueryExistingSensors(pageIndex); // await Task.Run(() => QueryExistingSensors(pageIndex));
 
-                Console.WriteLine(AccountDevices.Count);
+                    deviceCount = devices.metaInfo.totRsltSetCnt;
+
+                    AccountDevices.AddRange(devices.sensors.ToList());
+
+                } while (deviceCount > AccountDevices.Count);
+
+                Console.WriteLine("Devices: " + AccountDevices.Count);
             }
             catch (Exception e)
             {
@@ -475,15 +508,17 @@ namespace PULSEImport
 
         private async void LoadExistingVehicles()
         {
+            Console.WriteLine("LoadExistingVehicles");
+
             try
             {
-                var vehicles = await Task.Run(() => QueryExistingVehicles());
+                var vehicles = QueryExistingVehicles();
 
                 AccountVehicles = new List<Vehicle>();
 
                 AccountVehicles.AddRange(vehicles.vehicles.ToList());
 
-                Console.WriteLine(AccountVehicles.Count);
+                Console.WriteLine("Vehicles: " + AccountVehicles.Count);
             }
             catch (Exception e)
             {
@@ -494,15 +529,17 @@ namespace PULSEImport
 
         private async void LoadExistingEquipment()
         {
+            Console.WriteLine("LoadExistingEquipment");
+
             try
             {
-                var assets = await Task.Run(() => QueryExistingEquipment());
+                var assets = QueryExistingEquipment();
 
                 AccountEquipment = new List<Asset>();
 
                 AccountEquipment.AddRange(assets.assets.ToList());
 
-                Console.WriteLine(AccountEquipment.Count);
+                Console.WriteLine("Equipment: " + AccountEquipment.Count);
             }
             catch (Exception e)
             {
@@ -511,13 +548,36 @@ namespace PULSEImport
             }
         }
 
-        private Sensors QueryExistingSensors()
+        private async void LoadExistingPeople()
         {
+            Console.WriteLine("LoadExistingPeople");
+
+            try
+            {
+                var persons = QueryExistingPeople();
+
+                AccountPeople = new List<Person>();
+
+                AccountPeople.AddRange(persons.persons.ToList());
+
+                Console.WriteLine("People: " + AccountPeople.Count);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                //throw;
+            }
+        }
+
+        private Sensors QueryExistingSensors(int pageIndex = 1)
+        {
+            Console.WriteLine("QueryExistingSensors");
+
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
             var jsonResponse =
                 oculusApiRequest.ExecuteGET(_configData.ApiUrl +
-                                            string.Format("sensors/v5/?accountTId={0}", _accountTId));
+                                            string.Format("sensors/v5/?accountTId={0}&pageIndex={1}", _accountTId, pageIndex));
 
             var devices = JsonConvert.DeserializeObject<OculusAPI.Models.Sensors>(jsonResponse.ToString());
 
@@ -526,6 +586,8 @@ namespace PULSEImport
 
         private Vehicles QueryExistingVehicles()
         {
+            Console.WriteLine("QueryExistingVehicles");
+
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
             //var jsonResponse =
@@ -545,6 +607,8 @@ namespace PULSEImport
 
         private Assets QueryExistingEquipment()
         {
+            Console.WriteLine("QueryExistingEquipment");
+
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
             //var jsonResponse =
@@ -562,20 +626,78 @@ namespace PULSEImport
             return equipment;
         }
 
-        #region Models & Types
-        private Models LoadEquipmentModels()
+        private Persons QueryExistingPeople()
         {
+            Console.WriteLine("QueryExistingPeople");
+
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+            //var jsonResponse =
+            //    oculusApiRequest.ExecuteGET(_configData.ApiUrl +
+            //                                string.Format(
+            //                                    "sensors/associations/assets?accountTId={0}&associations.type=INSTALLED_IN&associations.startDt=/2015-01-01T00:00:00Z",
+            //                                    _accountTId));
+
+            var jsonResponse =
+                oculusApiRequest.ExecuteGET(_configData.ApiUrl +
+                                            string.Format("persons/v5/?accountTId={0}", _accountTId));
+
+            var people = JsonConvert.DeserializeObject<Persons>(jsonResponse.ToString());
+
+            return people;
+        }
+
+        #region Models & Types
+
+        private List<Model> LoadEquipmentModels()
+        {
+            Console.WriteLine("LoadEquipmentModels");
+
+            var equipModels = new List<Model>();
+
+            try
+            {
+                var modelCount = 0;
+                var pageIndex = 0;
+
+                do
+                {
+                    pageIndex++;
+
+                    var models = QueryExistingEquipmentModels(pageIndex);
+
+                    modelCount = models.metaInfo.totRsltSetCnt;
+
+                    equipModels.AddRange(models.types);
+
+                } while (modelCount > equipModels.Count);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                //throw;
+            }
+
+            Console.WriteLine("Equipment Models: " + equipModels.Count);
+
+            return equipModels;
+        }
+
+        private Models QueryExistingEquipmentModels(int pageIndex)
+        {
+            Console.WriteLine("QueryExistingEquipmentModels");
+
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
             // Request Accounts 
             var jsonResponse = oculusApiRequest.ExecuteGET(
                 _configData.ApiUrl +
-                string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}", _accountTId, "MODELS", "ASSETS"));
+                string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}&pageSize=1000&pageIndex={3}", _accountTId, "MODELS",
+                    "ASSETS", pageIndex));
 
             var models = JsonConvert.DeserializeObject<OculusAPI.Models.Models>(jsonResponse.ToString());
 
             return models;
-
         }
 
         private void ShowEquipmentModels(Models models)
@@ -589,12 +711,14 @@ namespace PULSEImport
 
         private OculusTypes LoadEquipmentTypes()
         {
+            Console.WriteLine("LoadEquipmentTypes");
+
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
             // Request Accounts 
             var jsonResponse = oculusApiRequest.ExecuteGET(
                 _configData.ApiUrl +
-                string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}", _accountTId, "TYPES", "ASSETS"));
+                string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}&pageSize=1000", _accountTId, "TYPES", "ASSETS"));
 
             var types = JsonConvert.DeserializeObject<OculusAPI.Models.OculusTypes>(jsonResponse.ToString());
 
@@ -612,6 +736,8 @@ namespace PULSEImport
 
         private Models LoadVehicleModels()
         {
+            Console.WriteLine("LoadVehicleModels");
+
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
             // Request Accounts 
@@ -635,6 +761,8 @@ namespace PULSEImport
 
         private OculusTypes LoadVehicleTypes()
         {
+            Console.WriteLine("LoadVehicleTypes");
+
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
             // Request Accounts 
@@ -673,30 +801,6 @@ namespace PULSEImport
             ofdDevices.RestoreDirectory = true;
 
             ofdDevices.ShowDialog();
-        }
-
-        private void lnkUploadEquipment_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-        {
-            ofdEquipment.Filter = "csv files (*.csv)|*.csv";
-            ofdEquipment.RestoreDirectory = true;
-
-            ofdEquipment.ShowDialog();
-        }
-
-        private void lnkUploadVehicles_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-        {
-            ofdVehicles.Filter = "csv files (*.csv)|*.csv";
-            ofdVehicles.RestoreDirectory = true;
-
-            ofdVehicles.ShowDialog();
-        }
-
-        private void lnkUploadPeople_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
-        {
-            ofdPeople.Filter = "csv files (*.csv)|*.csv";
-            ofdPeople.RestoreDirectory = true;
-
-            ofdPeople.ShowDialog();
         }
 
         private void ofdDevices_FileOk(object sender, CancelEventArgs e)
@@ -777,6 +881,22 @@ namespace PULSEImport
 
                 break;
             }
+        }
+
+        private void lnkDeviceUploadTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ProcessStartInfo sInfo =
+                new ProcessStartInfo("https://drive.google.com/file/d/1aAun6agJGRCOpGn4ibd9gyokUK4n6qqd");
+            Process.Start(sInfo);
+        }
+
+
+        private void lnkUploadEquipment_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ofdEquipment.Filter = "csv files (*.csv)|*.csv";
+            ofdEquipment.RestoreDirectory = true;
+
+            ofdEquipment.ShowDialog();
         }
 
         private void ofdEquipment_FileOk(object sender, CancelEventArgs e)
@@ -880,6 +1000,22 @@ namespace PULSEImport
             }
         }
 
+        private void lnkEquipmentUploadTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ProcessStartInfo sInfo =
+                new ProcessStartInfo("https://drive.google.com/open?id=1fu2TIiyfFKG-vo1L1cT52PVi9kT2ma17");
+            Process.Start(sInfo);
+        }
+
+
+        private void lnkUploadVehicles_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ofdVehicles.Filter = "csv files (*.csv)|*.csv";
+            ofdVehicles.RestoreDirectory = true;
+
+            ofdVehicles.ShowDialog();
+        }
+
         private void ofdVehicles_FileOk(object sender, CancelEventArgs e)
         {
             this.Activate();
@@ -979,6 +1115,22 @@ namespace PULSEImport
             }
         }
 
+        private void lnkVehicleUploadTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ProcessStartInfo sInfo =
+                new ProcessStartInfo("https://drive.google.com/open?id=1QRlHkkHcbjIG_LBlwxBBUGDkW9LgIaeZ");
+            Process.Start(sInfo);
+        }
+
+
+        private void lnkUploadPeople_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ofdPeople.Filter = "csv files (*.csv)|*.csv";
+            ofdPeople.RestoreDirectory = true;
+
+            ofdPeople.ShowDialog();
+        }
+
         private void ofdPeople_FileOk(object sender, CancelEventArgs e)
         {
             this.Activate();
@@ -1017,7 +1169,7 @@ namespace PULSEImport
 
                             try
                             {
-                                dtgVehicles.Rows.Add(fields.ToArray());
+                                dtgPeople.Rows.Add(fields.ToArray());
                             }
                             catch (Exception exception)
                             {
@@ -1039,26 +1191,295 @@ namespace PULSEImport
             }
         }
 
-        private void lnkDeviceUploadTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        private void lnkPeopleUploadTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             ProcessStartInfo sInfo =
-                new ProcessStartInfo("https://drive.google.com/file/d/1aAun6agJGRCOpGn4ibd9gyokUK4n6qqd");
+                new ProcessStartInfo("https://drive.google.com/open?id=140Z5h4NBxgzZ-EAXmyLSvXkmAFDhYkM9");
             Process.Start(sInfo);
         }
 
-        private void lnkEquipmentUploadTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+
+        private void lnkEquipModelTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             ProcessStartInfo sInfo =
-                new ProcessStartInfo("https://drive.google.com/open?id=1fu2TIiyfFKG-vo1L1cT52PVi9kT2ma17");
+                new ProcessStartInfo("https://drive.google.com/file/d/12Pe-lB4aiE1L1hBce18s-J__g4ukyqhb/view?usp=sharing");
             Process.Start(sInfo);
         }
 
-        private void lnkVehicleUploadTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        private void ofdEModels_FileOk(object sender, CancelEventArgs e)
+        {
+            this.Activate();
+            string[] files = ofdEModels.FileNames;
+
+            // Open each file and display the image in pictureBox1.
+            // Call Application.DoEvents to force a repaint after each
+            // file is read.        
+            foreach (string file in files)
+            {
+                System.IO.FileInfo fileInfo = new System.IO.FileInfo(file);
+
+                //Read the contents of CSV file.  
+                string csvData = File.ReadAllText(fileInfo.FullName);
+
+                var rows = csvData.Split('\n');
+
+                //Execute a loop over the rows.  
+                for (int i = 0; i <= rows.Count() - 1; i++)
+                {
+                    // Skip header
+                    if (i > 0)
+                    {
+                        var row = rows[i];
+
+                        if (!string.IsNullOrEmpty(row))
+                        {
+                            var fields = new List<string>();
+
+                            var name = row.Split(',')[0];
+                            var manufacturer = row.Split(',')[1];
+                            var description = row.Split(',')[2].Replace("\r", ""); ;
+
+                            // Name
+                            if (!string.IsNullOrEmpty(name))
+                                fields.Add(name);
+
+                            // Manufacturer
+                            if (!string.IsNullOrEmpty(manufacturer))
+                                fields.Add(manufacturer);
+
+                            // Description
+                            if (!string.IsNullOrEmpty(description))
+                                fields.Add(description);
+
+                            dtgEquipmentModels.Rows.Add(fields.ToArray());
+                        }
+                    }
+                }
+
+                UpdateStatusBar(
+                    string.Format("{0} row{1} ready for import.", rows.Count() - 1, rows.Count() - 1 > 1 ? "s" : ""));
+
+                break;
+            }
+        }
+
+        private void lnkEquipModelUpload_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ofdEModels.Filter = "csv files (*.csv)|*.csv";
+            ofdEModels.RestoreDirectory = true;
+
+            ofdEModels.ShowDialog();
+        }
+
+
+        private void lnkVehicleModelTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
         {
             ProcessStartInfo sInfo =
-                new ProcessStartInfo("https://drive.google.com/open?id=1QRlHkkHcbjIG_LBlwxBBUGDkW9LgIaeZ");
+                new ProcessStartInfo("https://drive.google.com/open?id=1qiSN1AIBPvkbMePmy4kF3rXMHqrzoqiI");
             Process.Start(sInfo);
         }
+
+        private void ofdVModels_FileOk(object sender, CancelEventArgs e)
+        {
+            this.Activate();
+            string[] files = ofdVModels.FileNames;
+
+            // Open each file and display the image in pictureBox1.
+            // Call Application.DoEvents to force a repaint after each
+            // file is read.        
+            foreach (string file in files)
+            {
+                System.IO.FileInfo fileInfo = new System.IO.FileInfo(file);
+
+                //Read the contents of CSV file.  
+                string csvData = File.ReadAllText(fileInfo.FullName);
+
+                var rows = csvData.Split('\n');
+
+                //Execute a loop over the rows.  
+                for (int i = 0; i <= rows.Count() - 1; i++)
+                {
+                    // Skip header
+                    if (i > 0)
+                    {
+                        var row = rows[i];
+
+                        if (!string.IsNullOrEmpty(row))
+                        {
+                            var fields = new List<string>();
+
+                            var name = row.Split(',')[0];
+                            var manufacturer = row.Split(',')[1];
+                            var description = row.Split(',')[2].Replace("\r", ""); ;
+
+                            // Name
+                            if (!string.IsNullOrEmpty(name))
+                                fields.Add(name);
+
+                            // Manufacturer
+                            if (!string.IsNullOrEmpty(manufacturer))
+                                fields.Add(manufacturer);
+
+                            // Description
+                            if (!string.IsNullOrEmpty(description))
+                                fields.Add(description);
+
+                            dtgVehicleModels.Rows.Add(fields.ToArray());
+                        }
+                    }
+                }
+
+                UpdateStatusBar(
+                    string.Format("{0} row{1} ready for import.", rows.Count() - 1, rows.Count() - 1 > 1 ? "s" : ""));
+
+                break;
+            }
+        }
+
+        private void lnkVehicleModelUpload_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ofdVModels.Filter = "csv files (*.csv)|*.csv";
+            ofdVModels.RestoreDirectory = true;
+
+            ofdVModels.ShowDialog();
+        }
+
+
+        private void lnkEquipTypeTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ProcessStartInfo sInfo =
+                new ProcessStartInfo("https://drive.google.com/open?id=1vI366Xf179JAgP_urUrKghvI83AeZ-fs");
+            Process.Start(sInfo);
+        }
+
+        private void ofdETypes_FileOk(object sender, CancelEventArgs e)
+        {
+            this.Activate();
+            string[] files = ofdETypes.FileNames;
+
+            // Open each file and display the image in pictureBox1.
+            // Call Application.DoEvents to force a repaint after each
+            // file is read.        
+            foreach (string file in files)
+            {
+                System.IO.FileInfo fileInfo = new System.IO.FileInfo(file);
+
+                //Read the contents of CSV file.  
+                string csvData = File.ReadAllText(fileInfo.FullName);
+
+                var rows = csvData.Split('\n');
+
+                //Execute a loop over the rows.  
+                for (int i = 0; i <= rows.Count() - 1; i++)
+                {
+                    // Skip header
+                    if (i > 0)
+                    {
+                        var row = rows[i];
+
+                        if (!string.IsNullOrEmpty(row))
+                        {
+                            var fields = new List<string>();
+
+                            var name = row.Split(',')[0];
+                            var description = row.Split(',')[1].Replace("\r", ""); ;
+
+                            // Name
+                            if (!string.IsNullOrEmpty(name))
+                                fields.Add(name);
+
+                            // Description
+                            if (!string.IsNullOrEmpty(description))
+                                fields.Add(description);
+
+                            dtgEquipmentTypes.Rows.Add(fields.ToArray());
+                        }
+                    }
+                }
+
+                UpdateStatusBar(
+                    string.Format("{0} row{1} ready for import.", rows.Count() - 1, rows.Count() - 1 > 1 ? "s" : ""));
+
+                break;
+            }
+        }
+
+        private void lnkEquipTypeUpload_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ofdETypes.Filter = "csv files (*.csv)|*.csv";
+            ofdETypes.RestoreDirectory = true;
+
+            ofdETypes.ShowDialog();
+        }
+
+
+        private void lnkVehicleTypeTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ProcessStartInfo sInfo =
+                new ProcessStartInfo("https://drive.google.com/open?id=1iY88F50mMVkjR4EVhaM2mNYWb2xcdUTS");
+            Process.Start(sInfo);
+        }
+
+        private void ofdVTypes_FileOk(object sender, CancelEventArgs e)
+        {
+            this.Activate();
+            string[] files = ofdVTypes.FileNames;
+
+            // Open each file and display the image in pictureBox1.
+            // Call Application.DoEvents to force a repaint after each
+            // file is read.        
+            foreach (string file in files)
+            {
+                System.IO.FileInfo fileInfo = new System.IO.FileInfo(file);
+
+                //Read the contents of CSV file.  
+                string csvData = File.ReadAllText(fileInfo.FullName);
+
+                var rows = csvData.Split('\n');
+
+                //Execute a loop over the rows.  
+                for (int i = 0; i <= rows.Count() - 1; i++)
+                {
+                    // Skip header
+                    if (i > 0)
+                    {
+                        var row = rows[i];
+
+                        if (!string.IsNullOrEmpty(row))
+                        {
+                            var fields = new List<string>();
+
+                            var name = row.Split(',')[0];
+                            var description = row.Split(',')[1].Replace("\r", ""); ;
+
+                            // Name
+                            if (!string.IsNullOrEmpty(name))
+                                fields.Add(name);
+
+                            // Description
+                            if (!string.IsNullOrEmpty(description))
+                                fields.Add(description);
+
+                            dtgVehicleTypes.Rows.Add(fields.ToArray());
+                        }
+                    }
+                }
+
+                UpdateStatusBar(
+                    string.Format("{0} row{1} ready for import.", rows.Count() - 1, rows.Count() - 1 > 1 ? "s" : ""));
+
+                break;
+            }
+        }
+
+        private void lnkVehicleTypeUpload_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ofdVTypes.Filter = "csv files (*.csv)|*.csv";
+            ofdVTypes.RestoreDirectory = true;
+
+            ofdVTypes.ShowDialog();
+        }
+
 
         #endregion
 
@@ -1068,19 +1489,29 @@ namespace PULSEImport
             if (MessageBox.Show("Are you sure you want to import these items?", "Confirm Import",
                     MessageBoxButtons.OKCancel) == DialogResult.OK)
             {
-                //var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-                if (dtgDevices.Rows.Count > 0)
+                if (dtgDevices.Rows.Count > 0 && !dtgDevices.Rows[0].IsNewRow)
                     ProcessDevices();
 
-                if (dtgEquipment.Rows.Count > 0)
+                if (dtgEquipment.Rows.Count > 0 && !dtgEquipment.Rows[0].IsNewRow)
                     ProcessEquipment();
 
-                if (dtgVehicles.Rows.Count > 0)
+                if (dtgVehicles.Rows.Count > 0 && !dtgVehicles.Rows[0].IsNewRow)
                     ProcessVehicles();
 
-                if (dtgPeople.Rows.Count > 0)
+                if (dtgPeople.Rows.Count > 0 && !dtgPeople.Rows[0].IsNewRow)
                     ProcessPeople();
+
+                if (dtgEquipmentModels.Rows.Count > 0 && !dtgEquipmentModels.Rows[0].IsNewRow)
+                    ProcessEquipmentModels();
+
+                if (dtgVehicleModels.Rows.Count > 0 && !dtgVehicleModels.Rows[0].IsNewRow)
+                    ProcessVehicleModels();
+
+                if (dtgEquipmentTypes.Rows.Count > 0 && !dtgEquipmentTypes.Rows[0].IsNewRow)
+                    ProcessEquipmentTypes();
+
+                if (dtgVehicleTypes.Rows.Count > 0 && !dtgVehicleTypes.Rows[0].IsNewRow)
+                    ProcessVehicleTypes();
 
             }
         }
@@ -1089,14 +1520,14 @@ namespace PULSEImport
 
         private void dtgDevices_CellEnter(object sender, DataGridViewCellEventArgs e)
         {
-            Console.WriteLine("CellEnter");
+            // Console.WriteLine("CellEnter");
 
             StartEditingRow(sender, e);
         }
 
         private void dtgDevices_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
-            Console.WriteLine("CellEndEdit");
+            // Console.WriteLine("CellEndEdit");
 
             if (e.RowIndex < dtgDevices.Rows.Count)
             {
@@ -1107,7 +1538,7 @@ namespace PULSEImport
 
         private void dtgDevices_RowValidating(object sender, DataGridViewCellCancelEventArgs e)
         {
-            Console.WriteLine("RowValidating");
+            // Console.WriteLine("RowValidating");
 
             if (dtgDevices.Rows[e.RowIndex] != null &&
                 !dtgDevices.Rows[e.RowIndex].IsNewRow &&
@@ -1124,7 +1555,7 @@ namespace PULSEImport
                         if (string.IsNullOrEmpty(dtgDevices.Rows[e.RowIndex].Cells[col.Index].FormattedValue
                             .ToString()))
                         {
-                            Console.WriteLine("Error!");
+                            // Console.WriteLine("Error!");
 
                             dtgDevices.Rows[e.RowIndex].ErrorText = "Serial Number must not be empty";
                             //e.Cancel = true;
@@ -1149,7 +1580,7 @@ namespace PULSEImport
             string headerText =
                 dtgDevices.Columns[e.ColumnIndex].HeaderText;
 
-            // Abort validation if cell is not in the CompanyName column.
+            // Abort validation if cell is not in the SerialNumber column.
             if (!headerText.Equals("SerialNumber")) return;
 
             // Confirm that the cell is not empty.
@@ -1238,7 +1669,7 @@ namespace PULSEImport
 
         private void dtgEquipment_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
-            Console.WriteLine("CellEndEdit");
+            // Console.WriteLine("CellEndEdit");
 
             if (e.RowIndex < dtgEquipment.Rows.Count)
             {
@@ -1254,7 +1685,7 @@ namespace PULSEImport
 
         private void dtgEquipment_RowValidating(object sender, DataGridViewCellCancelEventArgs e)
         {
-            Console.WriteLine("RowValidating");
+            // Console.WriteLine("RowValidating");
 
             if (dtgEquipment.Rows[e.RowIndex] != null &&
                 !dtgEquipment.Rows[e.RowIndex].IsNewRow &&
@@ -1329,7 +1760,7 @@ namespace PULSEImport
 
         private void dtgVehicles_CellEndEdit(object sender, DataGridViewCellEventArgs e)
         {
-            Console.WriteLine("CellEndEdit");
+            // Console.WriteLine("CellEndEdit");
 
             if (e.RowIndex < dtgVehicles.Rows.Count)
             {
@@ -1345,7 +1776,7 @@ namespace PULSEImport
 
         private void dtgVehicles_RowValidating(object sender, DataGridViewCellCancelEventArgs e)
         {
-            Console.WriteLine("RowValidating");
+            // Console.WriteLine("RowValidating");
 
             if (dtgVehicles.Rows[e.RowIndex] != null &&
                 !dtgVehicles.Rows[e.RowIndex].IsNewRow &&
@@ -1451,6 +1882,238 @@ namespace PULSEImport
 
         #endregion
 
+        #region Equipment Model Events
+        private void dtgEquipmentModels_CellEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            // Console.WriteLine("CellEnter");
+
+            StartEditingRow(sender, e);
+        }
+
+        private void dtgEquipmentModels_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            // Console.WriteLine("CellEndEdit");
+
+            if (e.RowIndex < dtgDevices.Rows.Count)
+            {
+                // Clear the row error in case the user presses ESC.   
+                dtgEquipmentModels.Rows[e.RowIndex].ErrorText = String.Empty;
+            }
+        }
+
+        private void dtgEquipmentModels_CellValidating(object sender, DataGridViewCellValidatingEventArgs e)
+        {
+            string headerText =
+                dtgEquipmentModels.Columns[e.ColumnIndex].HeaderText;
+
+            // Abort validation if cell is not in the Name column.
+            if (!headerText.Equals("Name")) return;
+
+            // Confirm that the cell is not empty.
+            if (string.IsNullOrEmpty(e.FormattedValue.ToString()))
+            {
+                dtgEquipmentModels.Rows[e.RowIndex].ErrorText =
+                    "Name must not be empty";
+                e.Cancel = true;
+            }
+        }
+
+        private void dtgEquipmentModels_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            // Nothing here, yet
+        }
+
+        private void dtgEquipmentModels_CurrentCellDirtyStateChanged(object sender, EventArgs e)
+        {
+            if (this.dtgEquipmentModels.IsCurrentCellDirty)
+            {
+                // This fires the cell value changed handler below
+                dtgEquipmentModels.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            }
+        }
+
+        private void dtgEquipmentModels_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            HandleRowDelete(sender, e);
+        }
+
+        private void dtgEquipmentModels_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            e.Cancel = true;
+        }
+        #endregion
+
+        #region Vehicle Model Events
+        private void dtgVehicleModels_CellEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            StartEditingRow(sender, e);
+        }
+
+        private void dtgVehicleModels_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < dtgVehicleModels.Rows.Count)
+            {
+                // Clear the row error in case the user presses ESC.   
+                dtgVehicleModels.Rows[e.RowIndex].ErrorText = String.Empty;
+            }
+        }
+
+        private void dtgVehicleModels_CellValidating(object sender, DataGridViewCellValidatingEventArgs e)
+        {
+            string headerText =
+                dtgVehicleModels.Columns[e.ColumnIndex].HeaderText;
+
+            // Abort validation if cell is not in the Name column.
+            if (!headerText.Equals("Name")) return;
+
+            // Confirm that the cell is not empty.
+            if (string.IsNullOrEmpty(e.FormattedValue.ToString()))
+            {
+                dtgVehicleModels.Rows[e.RowIndex].ErrorText =
+                    "Name must not be empty";
+                e.Cancel = true;
+            }
+        }
+
+        private void dtgVehicleModels_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            // Nothing here, yet
+        }
+
+        private void dtgVehicleModels_CurrentCellDirtyStateChanged(object sender, EventArgs e)
+        {
+            if (this.dtgVehicleModels.IsCurrentCellDirty)
+            {
+                // This fires the cell value changed handler below
+                dtgVehicleModels.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            }
+        }
+
+        private void dtgVehicleModels_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            HandleRowDelete(sender, e);
+        }
+
+        private void dtgVehicleModels_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            e.Cancel = true;
+        }
+        #endregion
+
+        #region Equipment Type Events
+        private void dtgEquipmentTypes_CellEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            StartEditingRow(sender, e);
+        }
+
+        private void dtgEquipmentTypes_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < dtgEquipmentTypes.Rows.Count)
+            {
+                // Clear the row error in case the user presses ESC.   
+                dtgEquipmentTypes.Rows[e.RowIndex].ErrorText = String.Empty;
+            }
+        }
+
+        private void dtgEquipmentTypes_CellValidating(object sender, DataGridViewCellValidatingEventArgs e)
+        {
+            string headerText =
+                dtgEquipmentTypes.Columns[e.ColumnIndex].HeaderText;
+
+            // Abort validation if cell is not in the Name column.
+            if (!headerText.Equals("Name")) return;
+
+            // Confirm that the cell is not empty.
+            if (string.IsNullOrEmpty(e.FormattedValue.ToString()))
+            {
+                dtgEquipmentTypes.Rows[e.RowIndex].ErrorText =
+                    "Name must not be empty";
+                e.Cancel = true;
+            }
+        }
+
+        private void dtgEquipmentTypes_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            // Nothing here, yet
+        }
+
+        private void dtgEquipmentTypes_CurrentCellDirtyStateChanged(object sender, EventArgs e)
+        {
+            if (this.dtgEquipmentTypes.IsCurrentCellDirty)
+            {
+                // This fires the cell value changed handler below
+                dtgEquipmentTypes.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            }
+        }
+
+        private void dtgEquipmentTypes_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            HandleRowDelete(sender, e);
+        }
+
+        private void dtgEquipmentTypes_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            e.Cancel = true;
+        }
+        #endregion
+
+        #region Vehicle Type Events
+        private void dtgVehicleTypes_CellEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            StartEditingRow(sender, e);
+        }
+
+        private void dtgVehicleTypes_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < dtgVehicleTypes.Rows.Count)
+            {
+                // Clear the row error in case the user presses ESC.   
+                dtgVehicleTypes.Rows[e.RowIndex].ErrorText = String.Empty;
+            }
+        }
+
+        private void dtgVehicleTypes_CellValidating(object sender, DataGridViewCellValidatingEventArgs e)
+        {
+            string headerText =
+                dtgVehicleTypes.Columns[e.ColumnIndex].HeaderText;
+
+            // Abort validation if cell is not in the Name column.
+            if (!headerText.Equals("Name")) return;
+
+            // Confirm that the cell is not empty.
+            if (string.IsNullOrEmpty(e.FormattedValue.ToString()))
+            {
+                dtgVehicleTypes.Rows[e.RowIndex].ErrorText =
+                    "Name must not be empty";
+                e.Cancel = true;
+            }
+        }
+
+        private void dtgVehicleTypes_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            // Nothing here, yet
+        }
+
+        private void dtgVehicleTypes_CurrentCellDirtyStateChanged(object sender, EventArgs e)
+        {
+            if (this.dtgVehicleTypes.IsCurrentCellDirty)
+            {
+                // This fires the cell value changed handler below
+                dtgVehicleTypes.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            }
+        }
+
+        private void dtgVehicleTypes_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            HandleRowDelete(sender, e);
+        }
+
+        private void dtgVehicleTypes_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            e.Cancel = true;
+        }
+        #endregion
+
         private void StartEditingRow(object sender, DataGridViewCellEventArgs e)
         {
             bool validClick = (e.RowIndex != -1 && e.ColumnIndex != -1); //Make sure the clicked row/column is valid.
@@ -1468,6 +2131,9 @@ namespace PULSEImport
         // Process DEVICES
         private void ProcessDevices()
         {
+            // Load devices to make sure there are no duplicates
+            LoadExistingDevices();
+
             var validDevices = true;
 
             var sensors = new List<sensors>();
@@ -1480,7 +2146,7 @@ namespace PULSEImport
 
                     // Check if device is already in the system...
                     if (AccountDevices.Any(d =>
-                        d.Equals(sn, StringComparison.InvariantCultureIgnoreCase)))
+                        d.sn.Equals(sn, StringComparison.InvariantCultureIgnoreCase)))
                     {
                         validDevices = false;
 
@@ -1553,9 +2219,19 @@ namespace PULSEImport
                             var msg = string.Format("{0} device{1} added!", sensors.Count,
                                 sensors.Count > 1 ? "s" : "");
 
-                            //// TODO: Setup associations...
-                            //// TODO: Can't deliver yet until we can get device TIds
-                            //AssociateDevices(oculusResponse);
+                            try
+                            {
+                                //// TODO: Setup associations...
+                                //// TODO: Can't deliver yet until we can get device TIds
+                                //AssociateDevices(oculusResponse);
+                            }
+                            catch (Exception e)
+                            {
+                                Console.WriteLine("Could not complete associations");
+                                Console.WriteLine(e);
+                                //throw;
+                            }
+
 
                             // TODO: Generate the 1st event
 
@@ -1685,6 +2361,8 @@ namespace PULSEImport
         // Process EQUIPMENT
         private void ProcessEquipment()
         {
+            LoadExistingEquipment();
+
             var equipment = new List<equipment>();
 
             foreach (DataGridViewRow row in dtgEquipment.Rows)
@@ -1795,6 +2473,8 @@ namespace PULSEImport
         // Process VEHICLES
         private void ProcessVehicles()
         {
+            LoadExistingVehicles();
+
             var vehicles = new List<vehicle>();
 
             foreach (DataGridViewRow row in dtgVehicles.Rows)
@@ -1906,7 +2586,9 @@ namespace PULSEImport
         // Process PEOPLE
         private void ProcessPeople()
         {
-            var people = new List<person>();
+            LoadExistingPeople();
+
+            var people = new List<Person>();
 
             foreach (DataGridViewRow row in dtgPeople.Rows)
             {
@@ -1917,15 +2599,26 @@ namespace PULSEImport
                         Console.WriteLine(SafeType.SafeString(row.Cells[0].Value) + " " +
                                           SafeType.SafeString(row.Cells[1].Value));
 
-                        people.Add(new PULSEImport.person()
+                        people.Add(new Person()
                         {
                             accountTId = _accountTId,
-                            fName = SafeType.SafeString(row.Cells[0].Value),
-                            lName = SafeType.SafeString(row.Cells[1].Value),
-                            employeeId = SafeType.SafeString(row.Cells[2].Value),
-                            email = SafeType.SafeString(row.Cells[3].Value),
-                            phoneNumber = SafeType.SafeString(row.Cells[4].Value),
-                            phoneType = SafeType.SafeString(row.Cells[5].Value)
+                            givenNames = SafeType.SafeString(row.Cells[0].Value),
+                            surname = SafeType.SafeString(row.Cells[1].Value),
+                            contacts = new Contacts()
+                            {
+                                emails = new Emails()
+                                {
+                                    business = SafeType.SafeString(row.Cells[3].Value)
+                                },
+                                phones = new Phones()
+                                {
+                                    mobile = SafeType.SafeString(row.Cells[4].Value)
+                                }
+                            }
+                            //employeeId = SafeType.SafeString(row.Cells[2].Value),
+                            //email = SafeType.SafeString(row.Cells[3].Value),
+                            //phoneNumber = SafeType.SafeString(row.Cells[4].Value),
+                            //phoneType = SafeType.SafeString(row.Cells[5].Value)
                         });
                     }
                     catch (Exception exception)
@@ -1943,7 +2636,7 @@ namespace PULSEImport
 
             if (people.Any())
             {
-                var body = "{ \"people\": " + JsonConvert.SerializeObject(people, Formatting.None,
+                var body = "{ \"persons\": " + JsonConvert.SerializeObject(people, Formatting.None,
                                new JsonSerializerSettings
                                {
                                    NullValueHandling = NullValueHandling.Ignore
@@ -1955,17 +2648,45 @@ namespace PULSEImport
 
                     UpdateStatusBar("Adding people...", true);
 
-                    oculusApiRequest.ExecutePOST(_configData.ApiUrl + "people/v5", body);
+                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "persons/v5", body);
 
-                    UpdateStatusBar(string.Format("{0} {1} added!", people.Count,
-                        people.Count > 1 ? "people" : "person"));
+                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
+                    {
+                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(SafeType.SafeString(response));
 
-                    dtgPeople.Rows.Clear();
+                        if (oculusResponse.statusCode == "201")
+                        {
+                            UpdateStatusBar(string.Format("{0} {1} added!", people.Count,
+                                people.Count > 1 ? "people" : "person"));
+
+                            dtgPeople.Rows.Clear();
+
+                            MessageBox.Show(string.Format("{0} {1} added!", people.Count,
+                                    people.Count > 1 ? "people" : "person"), "Success!", MessageBoxButtons.OK,
+                                MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            LogText(string.Format("{0}: {1}",
+                                SafeType.SafeString(oculusResponse.statusCode),
+                                SafeType.SafeString(oculusResponse.statusDescr)));
+
+                            MessageBox.Show("There was a problem importing the data.");
+
+                            UpdateStatusBar("");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("There was a problem importing the data.");
+
+                        UpdateStatusBar("");
+                    }
                 }
                 catch (Exception exception)
                 {
                     LogText(exception.Message);
-
+                    UpdateStatusBar("Could not import People data!");
                     MessageBox.Show(exception.Message);
                     Log4NetHelper.LogError(Logger, exception);
 
@@ -1976,19 +2697,757 @@ namespace PULSEImport
 
 
         // Process Equipment Models
-        // TODO: 
+        private void ProcessEquipmentModels()
+        {
+            var validModels = true;
+            var duplicateModels = new List<Model>();
 
+            var eModels = new List<Model>();
+
+            foreach (DataGridViewRow row in dtgEquipmentModels.Rows)
+            {
+                if (row.Cells[0].Value != null)
+                {
+                    var name = SafeType.SafeString(row.Cells[0].Value);
+
+                    // Build the Model object
+                    var model = new Model();
+
+                    try
+                    {
+                        var manufacturer = SafeType.SafeString(row.Cells[1].Value);
+                        var description = SafeType.SafeString(row.Cells[2].Value);
+
+                        var typeData = new TypeData()
+                        {
+                            mnf = manufacturer,
+                            mdl = name
+                        };
+
+                        model = new Model()
+                        {
+                            accountTId = _accountTId,
+                            name = name,
+                            descr = description,
+                            //crtdDt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            //uptdDt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            type = "MODELS",
+                            targetObjCat = "ASSETS",
+                            objCat = "TYPES",
+                            lifeState = "ACTV",
+                            typeData = typeData
+                        };
+
+                    }
+                    catch (Exception exception)
+                    {
+                        LogText("Could not add row: " + row.Index + 1);
+
+                        Console.WriteLine("Could not add row: " + row.Index + 1);
+                        Console.WriteLine(exception);
+
+                        Log4NetHelper.LogError(Logger, exception);
+
+                        //throw;
+                    }
+
+                    var validModel = true;
+
+                    // Check if Model is already in the system...
+                    if (EquipmentModels.ToList().Any(d =>
+                        d.name.Equals(name, StringComparison.InvariantCultureIgnoreCase)))
+                    {
+                        validModel = false;
+                        validModels = false;
+
+                        var errorText = string.Format("{0} is a duplicate Model Name.", name);
+
+                        LogText(errorText);
+
+                        row.ErrorText = errorText;
+                        //row.Cells[0].ErrorText = errorText;
+
+                        duplicateModels.Add(model);
+                    }
+
+                    if (validModel)
+                    {
+                        eModels.Add(model);
+                    }
+                }
+            }
+
+            // Check if all Models are valid
+            if (validModels && eModels.Any())
+            {
+                var eModelList = new Models();
+
+                eModelList.types = eModels;
+
+                var body = JsonConvert.SerializeObject(eModelList, Formatting.None,
+                    new JsonSerializerSettings
+                    {
+                        NullValueHandling = NullValueHandling.Ignore
+                    });
+
+                try
+                {
+                    Log4NetHelper.LogDebug(Logger, body);
+
+                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+                    UpdateStatusBar("Adding models...", true);
+
+                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "types/v1", body);
+
+                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
+                    {
+                        Log4NetHelper.LogDebug(Logger, response.ToString());
+
+                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
+
+                        if (oculusResponse.statusCode == "201")
+                        {
+                            var msg = string.Format("{0} model{1} added!", eModels.Count,
+                                eModels.Count > 1 ? "s" : "");
+
+                            UpdateStatusBar(msg, false);
+
+                            dtgEquipmentModels.Rows.Clear();
+
+                            MessageBox.Show(msg, "Success!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            LogText(string.Format("{0}: {1}",
+                                SafeType.SafeString(oculusResponse.statusCode),
+                                SafeType.SafeString(oculusResponse.statusDescr)));
+
+                            MessageBox.Show("There was a problem importing the data.");
+
+                            UpdateStatusBar("An error occurred");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("There was a problem importing the data.");
+
+                        UpdateStatusBar("An error occurred");
+                    }
+                }
+                catch (Exception exception)
+                {
+                    LogText(exception.Message);
+
+                    MessageBox.Show(exception.Message);
+                    Log4NetHelper.LogError(Logger, exception);
+                    UpdateStatusBar("");
+
+                    //throw;
+                }
+            }
+            else
+            {
+                if (!validModels)
+                {
+                    var duplicateDialog = MessageBox.Show(
+                        "Some Models already exist in PULSE. Do you want to remove those from the grid and import the models that are new?",
+                        "Existing Models", MessageBoxButtons.YesNo);
+
+                    if (duplicateDialog == DialogResult.Yes)
+                    {
+                        for (int n = dtgEquipmentModels.Rows.Count - 1; n >= 0; n--)
+                        {
+                            DataGridViewRow row = dtgEquipmentModels.Rows[n];
+
+                            if (row.Cells[0].Value != null)
+                            {
+                                foreach (var model in duplicateModels)
+                                {
+                                    if (row.Cells[0].Value.Equals(model.name))
+                                    {
+                                        try
+                                        {
+                                            dtgEquipmentModels.Rows.RemoveAt(n);
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            Console.WriteLine(e);
+                                            //throw;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        txtErrorLog.Text = "";
+
+                        ProcessEquipmentModels();
+                    }
+                }
+            }
+        }
 
         // Process Equipment Types
-        // TODO:
+        private void ProcessEquipmentTypes()
+        {
+            var validTypes = true;
+            var duplicateTypes = new List<OculusType>();
+
+            var eTypes = new List<OculusType>();
+
+            foreach (DataGridViewRow row in dtgEquipmentTypes.Rows)
+            {
+                if (row.Cells[0].Value != null)
+                {
+                    var name = SafeType.SafeString(row.Cells[0].Value);
+
+                    // Build the Model object
+                    var type = new OculusType();
+
+                    try
+                    {
+                        var description = SafeType.SafeString(row.Cells[1].Value);
+
+                        type = new OculusType()
+                        {
+                            accountTId = _accountTId,
+                            name = name,
+                            descr = description,
+                            //crtdDt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            //uptdDt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            type = "TYPES",
+                            targetObjCat = "ASSETS",
+                            objCat = "TYPES",
+                            lifeState = "ACTV"
+                        };
+
+                    }
+                    catch (Exception exception)
+                    {
+                        LogText("Could not add row: " + row.Index + 1);
+
+                        Console.WriteLine("Could not add row: " + row.Index + 1);
+                        Console.WriteLine(exception);
+
+                        Log4NetHelper.LogError(Logger, exception);
+
+                        //throw;
+                    }
+
+                    var validType = true;
+
+                    // Check if Model is already in the system...
+                    if (EquipmentTypes.ToList().Any(d =>
+                        d.name.Equals(name, StringComparison.InvariantCultureIgnoreCase)))
+                    {
+                        validType = false;
+                        validTypes = false;
+
+                        var errorText = string.Format("{0} is a duplicate Type Name.", name);
+
+                        LogText(errorText);
+
+                        row.ErrorText = errorText;
+                        //row.Cells[0].ErrorText = errorText;
+
+                        duplicateTypes.Add(type);
+                    }
+
+                    if (validType)
+                    {
+                        eTypes.Add(type);
+                    }
+                }
+            }
+
+            // Check if all Models are valid
+            if (validTypes && eTypes.Any())
+            {
+                var eTypeList = new OculusTypes();
+
+                eTypeList.types = eTypes;
+
+                var body = JsonConvert.SerializeObject(eTypeList, Formatting.None,
+                    new JsonSerializerSettings
+                    {
+                        NullValueHandling = NullValueHandling.Ignore
+                    });
+
+                try
+                {
+                    Log4NetHelper.LogDebug(Logger, body);
+
+                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+                    UpdateStatusBar("Adding types...", true);
+
+                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "types/v1", body);
+
+                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
+                    {
+                        Log4NetHelper.LogDebug(Logger, response.ToString());
+
+                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
+
+                        if (oculusResponse.statusCode == "201")
+                        {
+                            var msg = string.Format("{0} type{1} added!", eTypes.Count,
+                                eTypes.Count > 1 ? "s" : "");
+
+                            UpdateStatusBar(msg, false);
+
+                            dtgEquipmentTypes.Rows.Clear();
+
+                            MessageBox.Show(msg, "Success!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            LogText(string.Format("{0}: {1}",
+                                SafeType.SafeString(oculusResponse.statusCode),
+                                SafeType.SafeString(oculusResponse.statusDescr)));
+
+                            MessageBox.Show("There was a problem importing the data.");
+
+                            UpdateStatusBar("An error occurred");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("There was a problem importing the data.");
+
+                        UpdateStatusBar("An error occurred");
+                    }
+                }
+                catch (Exception exception)
+                {
+                    LogText(exception.Message);
+
+                    MessageBox.Show(exception.Message);
+                    Log4NetHelper.LogError(Logger, exception);
+                    UpdateStatusBar("");
+
+                    //throw;
+                }
+            }
+            else
+            {
+                if (!validTypes)
+                {
+                    var duplicateDialog = MessageBox.Show(
+                        "Some Types already exist in PULSE. Do you want to remove those from the grid and import the types that are new?",
+                        "Existing Types", MessageBoxButtons.YesNo);
+
+                    if (duplicateDialog == DialogResult.Yes)
+                    {
+                        for (int n = dtgEquipmentTypes.Rows.Count - 1; n >= 0; n--)
+                        {
+                            DataGridViewRow row = dtgEquipmentTypes.Rows[n];
+
+                            if (row.Cells[0].Value != null)
+                            {
+                                foreach (var type in duplicateTypes)
+                                {
+                                    if (row.Cells[0].Value.Equals(type.name))
+                                    {
+                                        try
+                                        {
+                                            dtgEquipmentTypes.Rows.RemoveAt(n);
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            Console.WriteLine(e);
+                                            //throw;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        txtErrorLog.Text = "";
+
+                        ProcessEquipmentTypes();
+                    }
+                }
+            }
+        }
 
 
         // Process Vehicle Models
-        // TODO: 
+        private void ProcessVehicleModels()
+        {
+            var validModels = true;
+            var duplicateModels = new List<Model>();
 
+            var eModels = new List<Model>();
+
+            foreach (DataGridViewRow row in dtgVehicleModels.Rows)
+            {
+                if (row.Cells[0].Value != null)
+                {
+                    var name = SafeType.SafeString(row.Cells[0].Value);
+
+                    // Build the Model object
+                    var model = new Model();
+
+                    try
+                    {
+                        var manufacturer = SafeType.SafeString(row.Cells[1].Value);
+                        var description = SafeType.SafeString(row.Cells[2].Value);
+
+                        var typeData = new TypeData()
+                        {
+                            mnf = manufacturer,
+                            mdl = name
+                        };
+
+                        model = new Model()
+                        {
+                            accountTId = _accountTId,
+                            name = name,
+                            descr = description,
+                            //crtdDt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            //uptdDt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            type = "MODELS",
+                            targetObjCat = "VEHICLES",
+                            objCat = "TYPES",
+                            lifeState = "ACTV",
+                            typeData = typeData
+                        };
+
+                    }
+                    catch (Exception exception)
+                    {
+                        LogText("Could not add row: " + row.Index + 1);
+
+                        Console.WriteLine("Could not add row: " + row.Index + 1);
+                        Console.WriteLine(exception);
+
+                        Log4NetHelper.LogError(Logger, exception);
+
+                        //throw;
+                    }
+
+                    var validModel = true;
+
+                    // Check if Model is already in the system...
+                    if (VehicleModels.ToList().Any(d =>
+                        d.name.Equals(name, StringComparison.InvariantCultureIgnoreCase)))
+                    {
+                        validModel = false;
+                        validModels = false;
+
+                        var errorText = string.Format("{0} is a duplicate Model Name.", name);
+
+                        LogText(errorText);
+
+                        row.ErrorText = errorText;
+                        //row.Cells[0].ErrorText = errorText;
+
+                        duplicateModels.Add(model);
+                    }
+
+                    if (validModel)
+                    {
+                        eModels.Add(model);
+                    }
+                }
+            }
+
+            // Check if all Models are valid
+            if (validModels && eModels.Any())
+            {
+                var vModelList = new Models();
+
+                vModelList.types = eModels;
+
+                var body = JsonConvert.SerializeObject(vModelList, Formatting.None,
+                    new JsonSerializerSettings
+                    {
+                        NullValueHandling = NullValueHandling.Ignore
+                    });
+
+                try
+                {
+                    Log4NetHelper.LogDebug(Logger, body);
+
+                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+                    UpdateStatusBar("Adding models...", true);
+
+                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "types/v1", body);
+
+                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
+                    {
+                        Log4NetHelper.LogDebug(Logger, response.ToString());
+
+                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
+
+                        if (oculusResponse.statusCode == "201")
+                        {
+                            var msg = string.Format("{0} model{1} added!", eModels.Count,
+                                eModels.Count > 1 ? "s" : "");
+
+                            UpdateStatusBar(msg, false);
+
+                            dtgVehicleModels.Rows.Clear();
+
+                            MessageBox.Show(msg, "Success!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            LogText(string.Format("{0}: {1}",
+                                SafeType.SafeString(oculusResponse.statusCode),
+                                SafeType.SafeString(oculusResponse.statusDescr)));
+
+                            MessageBox.Show("There was a problem importing the data.");
+
+                            UpdateStatusBar("An error occurred");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("There was a problem importing the data.");
+
+                        UpdateStatusBar("An error occurred");
+                    }
+                }
+                catch (Exception exception)
+                {
+                    LogText(exception.Message);
+
+                    MessageBox.Show(exception.Message);
+                    Log4NetHelper.LogError(Logger, exception);
+                    UpdateStatusBar("");
+
+                    //throw;
+                }
+            }
+            else
+            {
+                if (!validModels)
+                {
+                    var duplicateDialog = MessageBox.Show(
+                        "Some Models already exist in PULSE. Do you want to remove those from the grid and import the models that are new?",
+                        "Existing Models", MessageBoxButtons.YesNo);
+
+                    if (duplicateDialog == DialogResult.Yes)
+                    {
+                        for (int n = dtgVehicleModels.Rows.Count - 1; n >= 0; n--)
+                        {
+                            DataGridViewRow row = dtgVehicleModels.Rows[n];
+
+                            if (row.Cells[0].Value != null)
+                            {
+                                foreach (var model in duplicateModels)
+                                {
+                                    if (row.Cells[0].Value.Equals(model.name))
+                                    {
+                                        try
+                                        {
+                                            dtgVehicleModels.Rows.RemoveAt(n);
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            Console.WriteLine(e);
+                                            //throw;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        txtErrorLog.Text = "";
+
+                        ProcessVehicleModels();
+                    }
+                }
+            }
+        }
 
         // Process Vehicle Types
-        // TODO: 
+        private void ProcessVehicleTypes()
+        {
+            var validTypes = true;
+            var duplicateTypes = new List<OculusType>();
+
+            var vTypes = new List<OculusType>();
+
+            foreach (DataGridViewRow row in dtgVehicleTypes.Rows)
+            {
+                if (row.Cells[0].Value != null)
+                {
+                    var name = SafeType.SafeString(row.Cells[0].Value);
+
+                    // Build the Model object
+                    var type = new OculusType();
+
+                    try
+                    {
+                        var description = SafeType.SafeString(row.Cells[1].Value);
+
+                        type = new OculusType()
+                        {
+                            accountTId = _accountTId,
+                            name = name,
+                            descr = description,
+                            //crtdDt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            //uptdDt = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ssZ"),
+                            type = "TYPES",
+                            targetObjCat = "VEHICLES",
+                            objCat = "TYPES",
+                            lifeState = "ACTV"
+                        };
+
+                    }
+                    catch (Exception exception)
+                    {
+                        LogText("Could not add row: " + row.Index + 1);
+
+                        Console.WriteLine("Could not add row: " + row.Index + 1);
+                        Console.WriteLine(exception);
+
+                        Log4NetHelper.LogError(Logger, exception);
+
+                        //throw;
+                    }
+
+                    var validType = true;
+
+                    // Check if Model is already in the system...
+                    if (VehicleTypes.ToList().Any(d =>
+                        d.name.Equals(name, StringComparison.InvariantCultureIgnoreCase)))
+                    {
+                        validType = false;
+                        validTypes = false;
+
+                        var errorText = string.Format("{0} is a duplicate Type Name.", name);
+
+                        LogText(errorText);
+
+                        row.ErrorText = errorText;
+                        //row.Cells[0].ErrorText = errorText;
+
+                        duplicateTypes.Add(type);
+                    }
+
+                    if (validType)
+                    {
+                        vTypes.Add(type);
+                    }
+                }
+            }
+
+            // Check if all Models are valid
+            if (validTypes && vTypes.Any())
+            {
+                var vTypeList = new OculusTypes();
+
+                vTypeList.types = vTypes;
+
+                var body = JsonConvert.SerializeObject(vTypeList, Formatting.None,
+                    new JsonSerializerSettings
+                    {
+                        NullValueHandling = NullValueHandling.Ignore
+                    });
+
+                try
+                {
+                    Log4NetHelper.LogDebug(Logger, body);
+
+                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+                    UpdateStatusBar("Adding types...", true);
+
+                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "types/v1", body);
+
+                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
+                    {
+                        Log4NetHelper.LogDebug(Logger, response.ToString());
+
+                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
+
+                        if (oculusResponse.statusCode == "201")
+                        {
+                            var msg = string.Format("{0} type{1} added!", vTypes.Count,
+                                vTypes.Count > 1 ? "s" : "");
+
+                            UpdateStatusBar(msg, false);
+
+                            dtgVehicleTypes.Rows.Clear();
+
+                            MessageBox.Show(msg, "Success!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        }
+                        else
+                        {
+                            LogText(string.Format("{0}: {1}",
+                                SafeType.SafeString(oculusResponse.statusCode),
+                                SafeType.SafeString(oculusResponse.statusDescr)));
+
+                            MessageBox.Show("There was a problem importing the data.");
+
+                            UpdateStatusBar("An error occurred");
+                        }
+                    }
+                    else
+                    {
+                        MessageBox.Show("There was a problem importing the data.");
+
+                        UpdateStatusBar("An error occurred");
+                    }
+                }
+                catch (Exception exception)
+                {
+                    LogText(exception.Message);
+
+                    MessageBox.Show(exception.Message);
+                    Log4NetHelper.LogError(Logger, exception);
+                    UpdateStatusBar("");
+
+                    //throw;
+                }
+            }
+            else
+            {
+                if (!validTypes)
+                {
+                    var duplicateDialog = MessageBox.Show(
+                        "Some Types already exist in PULSE. Do you want to remove those from the grid and import the types that are new?",
+                        "Existing Types", MessageBoxButtons.YesNo);
+
+                    if (duplicateDialog == DialogResult.Yes)
+                    {
+                        for (int n = dtgVehicleTypes.Rows.Count - 1; n >= 0; n--)
+                        {
+                            DataGridViewRow row = dtgVehicleTypes.Rows[n];
+
+                            if (row.Cells[0].Value != null)
+                            {
+                                foreach (var type in duplicateTypes)
+                                {
+                                    if (row.Cells[0].Value.Equals(type.name))
+                                    {
+                                        try
+                                        {
+                                            dtgVehicleTypes.Rows.RemoveAt(n);
+                                        }
+                                        catch (Exception e)
+                                        {
+                                            Console.WriteLine(e);
+                                            //throw;
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        txtErrorLog.Text = "";
+
+                        ProcessVehicleTypes();
+                    }
+                }
+            }
+        }
 
 
         #region UI Logic
@@ -2054,6 +3513,28 @@ namespace PULSEImport
                 else if (tabControl1.SelectedIndex == 3)
                 {
                     dtgPeople.Rows.Clear();
+                }
+                else if (tabControl1.SelectedIndex == 4)
+                {
+                    if (tabControl2.SelectedIndex == 0)
+                    {
+                        dtgEquipmentModels.Rows.Clear();
+                    }
+                    else if (tabControl2.SelectedIndex == 1)
+                    {
+                        dtgVehicleModels.Rows.Clear();
+                    }
+                }
+                else if (tabControl1.SelectedIndex == 5)
+                {
+                    if (tabControl3.SelectedIndex == 0)
+                    {
+                        dtgEquipmentTypes.Rows.Clear();
+                    }
+                    else if (tabControl3.SelectedIndex == 1)
+                    {
+                        dtgVehicleTypes.Rows.Clear();
+                    }
                 }
             }
         }
@@ -2145,10 +3626,203 @@ namespace PULSEImport
             //InstallUpdateSyncWithInfo();
             LoadExistingDevices();
         }
+
+
         #endregion
 
+        private void pnlDevices_Click(object sender, EventArgs e)
+        {
+            var deviceList = new List<string[]>();
+
+            foreach (var device in AccountDevices)
+            {
+                // Part Number
+                var partNumber = string.Empty;
+                var deviceModel = DeviceModels.SingleOrDefault(m => m.tId == device.mdlTId);
+
+                if (deviceModel != null)
+                {
+                    partNumber = deviceModel.typeData.trimblePartNumber;
+                }
+
+                var row = new string[]
+                {
+                    device.sn,
+                    partNumber,
+                    device.descr
+                };
+
+                deviceList.Add(row);
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("SerialNumber,PartNumber,Description");
+
+            foreach (var row in deviceList)
+            {
+                sb.Append(row[0]);
+                sb.Append("," + row[1]);
+                sb.Append("," + row[2]);
+
+                sb.AppendLine();
+            }
+
+            Console.WriteLine(sb.ToString());
+
+            string fileName = string.Format("DeviceExport-{0}.csv", DateTime.Now.ToLongDateString());
+
+            ExportData(sb, fileName);
+        }
+
+        private void pnlEquipment_Click(object sender, EventArgs e)
+        {
+            var equipList = new List<string[]>();
+
+            foreach (var equip in AccountEquipment)
+            {
+                // Model
+                var equipModel = EquipmentModels.SingleOrDefault(m => m.tId == equip.mdlTId);
+
+                var row = new string[]
+                {
+                    equip.name,
+                    equip.sn,
+                    equip.mdlYr,
+                    equip.descr,
+                    equipModel?.name,
+                    equip.type
+                };
+
+                equipList.Add(row);
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Equipment ID,Serial Number,Year,Notes,Model,Type");
+
+            foreach (var row in equipList)
+            {
+                sb.Append(row[0]);
+                sb.Append("," + row[1]);
+                sb.Append("," + row[2]);
+                sb.Append("," + row[3]);
+                sb.Append("," + row[4]);
+                sb.Append("," + row[5]);
+
+                sb.AppendLine();
+            }
+
+            Console.WriteLine(sb.ToString());
+
+            string fileName = string.Format("EquipmentExport-{0}.csv", DateTime.Now.ToLongDateString());
+
+            ExportData(sb, fileName);
+        }
+
+        private void pnlVehicles_Click(object sender, EventArgs e)
+        {
+            var vehList = new List<string[]>();
+
+            foreach (var veh in AccountVehicles)
+            {
+                // Model
+                var vehModel = VehicleModels.SingleOrDefault(m => m.tId == veh.mdlTId);
+
+                var row = new string[]
+                {
+                    veh.name,
+                    veh.sn,
+                    veh.mdlYr.ToString(),
+                    veh.descr,
+                    vehModel?.name,
+                    veh.type
+                };
+
+                vehList.Add(row);
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Equipment ID,Serial Number,Year,Notes,Model,Type");
+
+            foreach (var row in vehList)
+            {
+                sb.Append(row[0]);
+                sb.Append("," + row[1]);
+                sb.Append("," + row[2]);
+                sb.Append("," + row[3]);
+                sb.Append("," + row[4]);
+                sb.Append("," + row[5]);
+
+                sb.AppendLine();
+            }
+
+            Console.WriteLine(sb.ToString());
+
+            string fileName = string.Format("VehicleExport-{0}.csv", DateTime.Now.ToLongDateString());
+
+            ExportData(sb, fileName);
+        }
+
+        private void pnlPeople_Click(object sender, EventArgs e)
+        {
+            var peopleList = new List<string[]>();
+
+            foreach (var person in AccountPeople)
+            {
+                var email = person.contacts?.emails?.business;
+                var phone = person.contacts?.phones?.mobile;
+
+                var row = new string[]
+                {
+                    person.givenNames,
+                    person.surname,
+                    person.userId,
+                    email,
+                    phone
+                };
+
+                peopleList.Add(row);
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("First Name,Last Name,Employee ID,Email Address,Phone Number");
+
+            foreach (var row in peopleList)
+            {
+                sb.Append(row[0]);
+                sb.Append("," + row[1]);
+                sb.Append("," + row[2]);
+                sb.Append("," + row[3]);
+                sb.Append("," + row[4]);
+
+                sb.AppendLine();
+            }
+
+            Console.WriteLine(sb.ToString());
+
+            string fileName = string.Format("PeopleExport-{0}.csv", DateTime.Now.ToLongDateString());
+
+            ExportData(sb, fileName);
+        }
+
+        private void ExportData(StringBuilder sb, string fileName)
+        {
+            var baseDir = AppDomain.CurrentDomain.BaseDirectory + "csv/";
+            string filePath = System.IO.Path.Combine(baseDir, fileName);
+
+            System.IO.FileInfo file = new System.IO.FileInfo(filePath);
+            file.Directory.Create();
+
+            System.IO.File.WriteAllText(file.FullName, sb.ToString());
+
+            if (MessageBox.Show("You file has been created. Would you like to open the export folder now?", "File Created", MessageBoxButtons.YesNo)
+                == DialogResult.Yes)
+            {
+                System.Diagnostics.Process.Start(baseDir);
+            }
+        }
     }
 
+    #region Classes
     public class DropDownItem
     {
         public string Value { get; set; }
@@ -2209,16 +3883,43 @@ namespace PULSEImport
         public List<vehicle> Vehicles { get; set; }
     }
 
-    internal class person
-    {
-        public string accountTId { get; set; }
-        public string fName { get; set; }
-        public string lName { get; set; }
-        public string employeeId { get; set; }
-        public string email { get; set; }
-        public string phoneNumber { get; set; }
-        public string phoneType { get; set; }
-    }
+    #region Person Classes
+    //internal class person
+    //{
+    //    public string accountTId { get; set; }
+    //    public string givenNames { get; set; }
+    //    public string surname { get; set; }
+    //    public contacts contacts { get; set; }
+    //}
+
+    //internal class contacts
+    //{
+    //    public phones phones { get; set; }
+    //    public emails emails { get; set; }
+    //}
+
+    //internal class phones
+    //{
+    //    public string home { get; set; }
+    //    public string work { get; set; }
+    //    public string mobile { get; set; }
+    //    public string other { get; set; }
+    //}
+
+    //internal class emails
+    //{
+    //    public string personal { get; set; }
+    //    public string business { get; set; }
+    //    public string other { get; set; }
+    //}
+
+    //internal class personData
+    //{
+    //    public string driverLic { get; set; }
+    //    public string driverLicType { get; set; }
+    //    public string driverLicIA { get; set; }
+    //}
+    #endregion
 
     public class association
     {
@@ -2244,6 +3945,7 @@ namespace PULSEImport
             Associations = new List<association>();
         }
     }
+    #endregion
 
     //internal class AccountDisplay
     //{
