@@ -9,5 +9,6 @@
         public string AccessToken { get; set; }
         public string RefreshToken { get; set; }
         public string OculusTId { get; set; }
+        public string AppAccessToken { get; set; }
     }
 }

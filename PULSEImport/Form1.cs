@@ -19,6 +19,7 @@ namespace PULSEImport
 {
     public partial class Form1 : Form
     {
+
         private static readonly ILog Logger = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         //private string apiUrl = "";
@@ -32,6 +33,8 @@ namespace PULSEImport
 
         private string _environtmentName;
         private string _accountTId;
+
+        private const string ExportDate = "yyyy-dd-MM HH-mm-ss";
 
         private OculusRequest oculusRequest;
 
@@ -289,7 +292,6 @@ namespace PULSEImport
 
             UpdateStatusBar("Setting up grids...", true);
 
-
             //await Task.Run(() => LoadExistingDevices());
             //await Task.Run(() => LoadExistingVehicles());
             //await Task.Run(() => LoadExistingEquipment());
@@ -313,7 +315,7 @@ namespace PULSEImport
             materialTabSelector1.Enabled = true;
         }
 
-        private void materialTabControl1_SelectedIndexChanged(object sender, EventArgs e)
+        private async void materialTabControl1_SelectedIndexChangedAsync(object sender, EventArgs e)
         {
             if (dtgAccounts.SelectedRows.Count == 0)
             {
@@ -322,10 +324,28 @@ namespace PULSEImport
 
             if (materialTabControl1.SelectedIndex == 2)
             {
+                UpdateStatusBar("Loading data...", true);
+
+                flpExportTiles.Enabled = false;
+
+                lblEquipModels.Text = EquipmentModels.Count.ToString();
+                lblEquipTypes.Text = EquipmentTypes.Count.ToString();
+                lblVehicleModels.Text = VehicleModels.Count.ToString();
+                lblVehicleTypes.Text = VehicleTypes.Count.ToString();
+
+                await Task.Run(() => LoadExistingDevices());
+                await Task.Run(() => LoadExistingVehicles());
+                await Task.Run(() => LoadExistingEquipment());
+                await Task.Run(() => LoadExistingPeople());
+
                 lblDeviceCount.Text = AccountDevices.Count.ToString();
                 lblEquipmentCount.Text = AccountEquipment.Count.ToString();
                 lblVehicleCount.Text = AccountVehicles.Count.ToString();
                 lblPeopleCount.Text = AccountPeople.Count.ToString();
+
+                flpExportTiles.Enabled = true;
+
+                UpdateStatusBar("Ready for exports!");
             }
         }
 
@@ -687,7 +707,7 @@ namespace PULSEImport
         {
             Console.WriteLine("QueryExistingEquipmentModels");
 
-            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AppAccessToken);
 
             // Request Accounts 
             var jsonResponse = oculusApiRequest.ExecuteGET(
@@ -713,7 +733,7 @@ namespace PULSEImport
         {
             Console.WriteLine("LoadEquipmentTypes");
 
-            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AppAccessToken);
 
             // Request Accounts 
             var jsonResponse = oculusApiRequest.ExecuteGET(
@@ -738,7 +758,7 @@ namespace PULSEImport
         {
             Console.WriteLine("LoadVehicleModels");
 
-            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AppAccessToken);
 
             // Request Accounts 
             var jsonResponse = oculusApiRequest.ExecuteGET(
@@ -763,7 +783,7 @@ namespace PULSEImport
         {
             Console.WriteLine("LoadVehicleTypes");
 
-            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AppAccessToken);
 
             // Request Accounts 
             var jsonResponse = oculusApiRequest.ExecuteGET(
@@ -3669,7 +3689,7 @@ namespace PULSEImport
 
             Console.WriteLine(sb.ToString());
 
-            string fileName = string.Format("DeviceExport-{0}.csv", DateTime.Now.ToLongDateString());
+            string fileName = string.Format("DeviceExport-{0}-{1}.csv", _accountTId, DateTime.Now.ToString(ExportDate));
 
             ExportData(sb, fileName);
         }
@@ -3713,7 +3733,7 @@ namespace PULSEImport
 
             Console.WriteLine(sb.ToString());
 
-            string fileName = string.Format("EquipmentExport-{0}.csv", DateTime.Now.ToLongDateString());
+            string fileName = string.Format("EquipmentExport-{0}-{1}.csv", _accountTId, DateTime.Now.ToString(ExportDate));
 
             ExportData(sb, fileName);
         }
@@ -3757,7 +3777,7 @@ namespace PULSEImport
 
             Console.WriteLine(sb.ToString());
 
-            string fileName = string.Format("VehicleExport-{0}.csv", DateTime.Now.ToLongDateString());
+            string fileName = string.Format("VehicleExport-{0}-{1}.csv", _accountTId, DateTime.Now.ToString(ExportDate));
 
             ExportData(sb, fileName);
         }
@@ -3799,7 +3819,143 @@ namespace PULSEImport
 
             Console.WriteLine(sb.ToString());
 
-            string fileName = string.Format("PeopleExport-{0}.csv", DateTime.Now.ToLongDateString());
+            string fileName = string.Format("PeopleExport-{0}-{1}.csv", _accountTId, DateTime.Now.ToString(ExportDate));
+
+            ExportData(sb, fileName);
+        }
+
+        private void pnlEquipModels_Click(object sender, EventArgs e)
+        {
+            var typeList = new List<string[]>();
+
+            foreach (var type in EquipmentModels)
+            {
+                var row = new string[]
+                {
+                    type.name,
+                    type.typeData?.mnf,
+                    type.descr
+                };
+
+                typeList.Add(row);
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Name,Manufacturer,Description");
+
+            foreach (var row in typeList)
+            {
+                sb.Append(row[0]);
+                sb.Append("," + row[1]);
+                sb.Append("," + row[2]);
+
+                sb.AppendLine();
+            }
+
+            Console.WriteLine(sb.ToString());
+
+            string fileName = string.Format("EquipmentModelExport-{0}-{1}.csv", _accountTId, DateTime.Now.ToString(ExportDate));
+
+            ExportData(sb, fileName);
+        }
+
+        private void pnlEquipTypes_Click(object sender, EventArgs e)
+        {
+            var typeList = new List<string[]>();
+
+            foreach (var type in EquipmentTypes)
+            {
+                var row = new string[]
+                {
+                    type.name,
+                    type.descr
+                };
+
+                typeList.Add(row);
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Name,Description");
+
+            foreach (var row in typeList)
+            {
+                sb.Append(row[0]);
+                sb.Append("," + row[1]);
+
+                sb.AppendLine();
+            }
+
+            Console.WriteLine(sb.ToString());
+
+            string fileName = string.Format("EquipmentTypesExport-{0}-{1}.csv", _accountTId, DateTime.Now.ToString(ExportDate));
+
+            ExportData(sb, fileName);
+        }
+
+        private void pnlVehicleModels_Click(object sender, EventArgs e)
+        {
+            var typeList = new List<string[]>();
+
+            foreach (var type in VehicleModels)
+            {
+                var row = new string[]
+                {
+                    type.name,
+                    type.typeData?.mnf,
+                    type.descr
+                };
+
+                typeList.Add(row);
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Name,Manufacturer,Description");
+
+            foreach (var row in typeList)
+            {
+                sb.Append(row[0]);
+                sb.Append("," + row[1]);
+                sb.Append("," + row[2]);
+
+                sb.AppendLine();
+            }
+
+            Console.WriteLine(sb.ToString());
+
+            string fileName = string.Format("VehicleModelExport-{0}-{1}.csv", _accountTId, DateTime.Now.ToString(ExportDate));
+
+            ExportData(sb, fileName);
+        }
+
+        private void pnlVehicleTypes_Click(object sender, EventArgs e)
+        {
+            var typeList = new List<string[]>();
+
+            foreach (var type in VehicleTypes)
+            {
+                var row = new string[]
+                {
+                    type.name,
+                    type.descr
+                };
+
+                typeList.Add(row);
+            }
+
+            StringBuilder sb = new StringBuilder();
+            sb.AppendLine("Name,Description");
+
+            foreach (var row in typeList)
+            {
+                sb.Append(row[0]);
+                sb.Append("," + row[1]);
+
+                sb.AppendLine();
+            }
+
+            Console.WriteLine(sb.ToString());
+
+            string fileName = string.Format("VehicleTypesExport-{0}-{1}.csv", _accountTId, DateTime.Now.ToString(ExportDate));
 
             ExportData(sb, fileName);
         }
@@ -3807,6 +3963,12 @@ namespace PULSEImport
         private void ExportData(StringBuilder sb, string fileName)
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory + "csv/";
+
+            if (fbdExportFolder.ShowDialog() == DialogResult.OK)
+            {
+                baseDir = fbdExportFolder.SelectedPath;
+            }
+
             string filePath = System.IO.Path.Combine(baseDir, fileName);
 
             System.IO.FileInfo file = new System.IO.FileInfo(filePath);

@@ -41,7 +41,29 @@ namespace PULSEImport
 
                 this.ActiveControl = txtPassword;
             }
+        }
 
+        private void SetupEnvironmentConfig()
+        {
+            var environment = ((DropDownItem)ddlEnvironment.SelectedItem).Value;
+
+            switch (environment)
+            {
+                case "QA":
+                    _configData = EnvironmentConfig.GetQAConfig();
+                    break;
+                case "Staging":
+                    _configData = EnvironmentConfig.GetStagingConfig();
+                    break;
+                case "Production":
+                    _configData = EnvironmentConfig.GetProductionConfig();
+                    break;
+                case "Production (EU)":
+                    _configData = EnvironmentConfig.GetProductionEUConfig();
+                    break;
+            }
+
+            EnvironmentConfig.ConfigData = _configData;
         }
 
         private void Login_FormClosing(object sender, FormClosingEventArgs e)
@@ -68,25 +90,20 @@ namespace PULSEImport
         {
             var oculusApiAuth = new OculusAPI.Services.Authentication();
 
-            var environment = ((DropDownItem)ddlEnvironment.SelectedItem).Value;
+            SetupEnvironmentConfig();
 
-            switch (environment)
+            try
             {
-                case "QA":
-                    _configData = EnvironmentConfig.GetQAConfig();
-                    break;
-                case "Staging":
-                    _configData = EnvironmentConfig.GetStagingConfig();
-                    break;
-                case "Production":
-                    _configData = EnvironmentConfig.GetProductionConfig();
-                    break;
-                case "Production (EU)":
-                    _configData = EnvironmentConfig.GetProductionEUConfig();
-                    break;
-            }
+                var appAccessToken =
+                    oculusApiAuth.RequestAccessToken(_configData.ApiUrl, _configData.ClientId, _configData.Secret);
 
-            EnvironmentConfig.ConfigData = _configData;
+                _configData.AppAccessToken = appAccessToken;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
 
             try
             {
