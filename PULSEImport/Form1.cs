@@ -33,6 +33,7 @@ namespace PULSEImport
 
         private string _environtmentName;
         private string _accountTId;
+        private string _accountName;
 
         private const string ExportDate = "yyyy-dd-MM HH-mm-ss";
 
@@ -273,7 +274,10 @@ namespace PULSEImport
         private async void btnNext_Click(object sender, EventArgs e)
         {
             _accountTId = dtgAccounts.SelectedRows[0].Cells[1].Value.ToString();
-            lblAccountName.Text = dtgAccounts.SelectedRows[0].Cells[0].Value.ToString();
+            _accountName = dtgAccounts.SelectedRows[0].Cells[0].Value.ToString();
+
+            lblAccountName.Text = _accountName;
+            lblAccountName2.Text = _accountName;
 
             foreach (TabPage tp in tabControl1.TabPages)
             {
@@ -362,51 +366,62 @@ namespace PULSEImport
         {
             Console.WriteLine("SetupImportGrids");
 
-            Models models = LoadDeviceModels(); // await Task.Run(() => LoadDeviceModels());
+            List<Model> models = LoadDeviceModels(); // await Task.Run(() => LoadDeviceModels());
 
             ShowDeviceModels(models);
 
             List<Model> equipModels = LoadEquipmentModels(); // await Task.Run(() => LoadEquipmentModels());
-            OculusTypes equipTypes = LoadEquipmentTypes(); //await Task.Run(() => LoadEquipmentTypes());
+            List<OculusType> equipTypes = LoadEquipmentTypes(); //await Task.Run(() => LoadEquipmentTypes());
 
-            Models vehModels = LoadVehicleModels(); // await Task.Run(() => LoadVehicleModels());
-            OculusTypes vehTypes = LoadVehicleTypes(); // await Task.Run(() => LoadVehicleTypes());
+            List<Model> vehModels = LoadVehicleModels(); // await Task.Run(() => LoadVehicleModels());
+            List<OculusType> vehTypes = LoadVehicleTypes(); // await Task.Run(() => LoadVehicleTypes());
+
+            List<OculusType> placeTypes = LoadPlaceTypes();
 
             ShowEquipmentModels(new Models() { types = equipModels });
-            ShowEquipmentTypes(equipTypes);
-            ShowVehicleModels(vehModels);
-            ShowVehicleTypes(vehTypes);
-
-            // TODO: Not quite ready. Removing pre-loading objects
-            // ShowAssets();
+            ShowEquipmentTypes(new OculusTypes() { types = equipTypes });
+            ShowVehicleModels(new Models() { types = vehModels });
+            ShowVehicleTypes(new OculusTypes() { types = vehTypes });
+            ShowPlaceTypes(new OculusTypes() { types = placeTypes });
         }
 
-        private void LoadDevicePartNumbers()
-        {
-            if (DeviceModels != null && DeviceModels.Any())
-            {
 
-                PartNumbers.AddRange(
-                    DeviceModels
-                        .Where(dm => dm.typeData.trimblePartNumber != null)
-                        .Select(dm => dm.typeData.trimblePartNumber));
-
-                //foreach (var model in DeviceModels)
-                //{
-                //    if (!PartNumbers.Contains(model.typeData.trimblePartNumber))
-                //    {
-                //        PartNumbers.Add(model.typeData.trimblePartNumber);
-                //    }
-                //}
-
-                PartNumber.DataSource = PartNumbers;
-            }
-        }
-
-        private Models LoadDeviceModels()
+        private List<Model> LoadDeviceModels()
         {
             Console.WriteLine("LoadDeviceModels");
 
+            var deviceModels = new List<Model>();
+
+            try
+            {
+                var modelCount = 0;
+                var pageIndex = 0;
+
+                do
+                {
+                    pageIndex++;
+
+                    var models = QuerySensorModels(pageIndex); // await Task.Run(() => QueryExistingSensors(pageIndex));
+
+                    modelCount = models.metaInfo.totRsltSetCnt;
+
+                    deviceModels.AddRange(models.types.ToList());
+
+                } while (modelCount > deviceModels.Count);
+
+                Console.WriteLine("Device Models: " + deviceModels.Count);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                //throw;
+            }
+
+            return deviceModels;
+        }
+
+        private Models QuerySensorModels(int pageIndex = 1)
+        {
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
             var oculusTId = _configData.OculusTId; // "58240ee5e4b01e7825f67da6";
@@ -416,18 +431,18 @@ namespace PULSEImport
                 _configData.ApiUrl +
                 //_configData.PULSEApiUrl +
                 //string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}", oculusTId, "MODELS", "SENSORS"));
-                string.Format("types/v1?type={0}&targetObjCat={1}", "MODELS", "SENSORS"));
+                string.Format("types/v1?type={0}&targetObjCat={1}&pageIndex={2}", "MODELS", "SENSORS", pageIndex));
 
             var models = JsonConvert.DeserializeObject<OculusAPI.Models.Models>(jsonResponse.ToString());
 
             return models;
         }
 
-        private void ShowDeviceModels(Models models)
+        private void ShowDeviceModels(List<Model> deviceModels)
         {
             try
             {
-                var deviceModels = models.types;
+                //var deviceModels = models.types;
 
                 var modelList = deviceModels.Where(m => m.typeData.mdl != null);
 
@@ -449,6 +464,27 @@ namespace PULSEImport
             }
 
             LoadDevicePartNumbers();
+        }
+
+        private void LoadDevicePartNumbers()
+        {
+            if (DeviceModels != null && DeviceModels.Any())
+            {
+                PartNumbers.AddRange(
+                    DeviceModels
+                        .Where(dm => dm.typeData.trimblePartNumber != null)
+                        .Select(dm => dm.typeData.trimblePartNumber));
+
+                //foreach (var model in DeviceModels)
+                //{
+                //    if (!PartNumbers.Contains(model.typeData.trimblePartNumber))
+                //    {
+                //        PartNumbers.Add(model.typeData.trimblePartNumber);
+                //    }
+                //}
+
+                PartNumber.DataSource = PartNumbers;
+            }
         }
 
         private void ShowAssets()
@@ -526,17 +562,42 @@ namespace PULSEImport
             }
         }
 
+        private Sensors QueryExistingSensors(int pageIndex = 1)
+        {
+            Console.WriteLine("QueryExistingSensors");
+
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+            var jsonResponse =
+                oculusApiRequest.ExecuteGET(_configData.ApiUrl +
+                                            string.Format("sensors/v5/?accountTId={0}&pageIndex={1}", _accountTId, pageIndex));
+
+            var devices = JsonConvert.DeserializeObject<OculusAPI.Models.Sensors>(jsonResponse.ToString());
+
+            return devices;
+        }
+
         private async void LoadExistingVehicles()
         {
             Console.WriteLine("LoadExistingVehicles");
 
             try
             {
-                var vehicles = QueryExistingVehicles();
-
+                var vehicleCount = 0;
                 AccountVehicles = new List<Vehicle>();
+                var pageIndex = 0;
 
-                AccountVehicles.AddRange(vehicles.vehicles.ToList());
+                do
+                {
+                    pageIndex++;
+
+                    var vehicles = QueryExistingVehicles(pageIndex); // await Task.Run(() => QueryExistingSensors(pageIndex));
+
+                    vehicleCount = vehicles.MetaInfo.totRsltSetCnt;
+
+                    AccountVehicles.AddRange(vehicles.vehicles.ToList());
+
+                } while (vehicleCount > AccountDevices.Count);
 
                 Console.WriteLine("Vehicles: " + AccountVehicles.Count);
             }
@@ -547,17 +608,42 @@ namespace PULSEImport
             }
         }
 
+        private Vehicles QueryExistingVehicles(int pageIndex = 1)
+        {
+            Console.WriteLine("QueryExistingVehicles");
+
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+            var jsonResponse =
+                oculusApiRequest.ExecuteGET(_configData.ApiUrl +
+                                            string.Format("vehicles/v5/?accountTId={0}&pageIndex={1}", _accountTId, pageIndex));
+
+            var vehicles = JsonConvert.DeserializeObject<Vehicles>(jsonResponse.ToString());
+
+            return vehicles;
+        }
+
         private async void LoadExistingEquipment()
         {
             Console.WriteLine("LoadExistingEquipment");
 
             try
             {
-                var assets = QueryExistingEquipment();
-
+                var equipmentCount = 0;
                 AccountEquipment = new List<Asset>();
+                var pageIndex = 0;
 
-                AccountEquipment.AddRange(assets.assets.ToList());
+                do
+                {
+                    pageIndex++;
+
+                    var assets = QueryExistingEquipment(pageIndex);
+
+                    AccountEquipment = new List<Asset>();
+
+                    AccountEquipment.AddRange(assets.assets.ToList());
+
+                } while (equipmentCount > AccountEquipment.Count);
 
                 Console.WriteLine("Equipment: " + AccountEquipment.Count);
             }
@@ -566,6 +652,21 @@ namespace PULSEImport
                 Console.WriteLine(e);
                 //throw;
             }
+        }
+
+        private Assets QueryExistingEquipment(int pageIndex = 1)
+        {
+            Console.WriteLine("QueryExistingEquipment");
+
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+            var jsonResponse =
+                oculusApiRequest.ExecuteGET(_configData.ApiUrl +
+                                            string.Format("assets/v4/?accountTId={0}&pageIndex={1}", _accountTId, pageIndex));
+
+            var equipment = JsonConvert.DeserializeObject<Assets>(jsonResponse.ToString());
+
+            return equipment;
         }
 
         private async void LoadExistingPeople()
@@ -589,78 +690,15 @@ namespace PULSEImport
             }
         }
 
-        private Sensors QueryExistingSensors(int pageIndex = 1)
-        {
-            Console.WriteLine("QueryExistingSensors");
-
-            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-            var jsonResponse =
-                oculusApiRequest.ExecuteGET(_configData.ApiUrl +
-                                            string.Format("sensors/v5/?accountTId={0}&pageIndex={1}", _accountTId, pageIndex));
-
-            var devices = JsonConvert.DeserializeObject<OculusAPI.Models.Sensors>(jsonResponse.ToString());
-
-            return devices;
-        }
-
-        private Vehicles QueryExistingVehicles()
-        {
-            Console.WriteLine("QueryExistingVehicles");
-
-            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-            //var jsonResponse =
-            //    oculusApiRequest.ExecuteGET(_configData.ApiUrl +
-            //                            string.Format(
-            //                                "sensors/associations/vehicles?accountTId={0}&associations.type=INSTALLED_IN&associations.startDt=/2015-01-01T00:00:00Z",
-            //                                _accountTId));
-
-            var jsonResponse =
-                    oculusApiRequest.ExecuteGET(_configData.ApiUrl +
-                                                string.Format("vehicles/v5/?accountTId={0}", _accountTId));
-
-            var vehicles = JsonConvert.DeserializeObject<Vehicles>(jsonResponse.ToString());
-
-            return vehicles;
-        }
-
-        private Assets QueryExistingEquipment()
-        {
-            Console.WriteLine("QueryExistingEquipment");
-
-            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-            //var jsonResponse =
-            //    oculusApiRequest.ExecuteGET(_configData.ApiUrl +
-            //                                string.Format(
-            //                                    "sensors/associations/assets?accountTId={0}&associations.type=INSTALLED_IN&associations.startDt=/2015-01-01T00:00:00Z",
-            //                                    _accountTId));
-
-            var jsonResponse =
-                oculusApiRequest.ExecuteGET(_configData.ApiUrl +
-                                            string.Format("assets/v4/?accountTId={0}", _accountTId));
-
-            var equipment = JsonConvert.DeserializeObject<Assets>(jsonResponse.ToString());
-
-            return equipment;
-        }
-
-        private Persons QueryExistingPeople()
+        private Persons QueryExistingPeople(int pageIndex = 1)
         {
             Console.WriteLine("QueryExistingPeople");
 
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
-            //var jsonResponse =
-            //    oculusApiRequest.ExecuteGET(_configData.ApiUrl +
-            //                                string.Format(
-            //                                    "sensors/associations/assets?accountTId={0}&associations.type=INSTALLED_IN&associations.startDt=/2015-01-01T00:00:00Z",
-            //                                    _accountTId));
-
             var jsonResponse =
                 oculusApiRequest.ExecuteGET(_configData.ApiUrl +
-                                            string.Format("persons/v5/?accountTId={0}", _accountTId));
+                                            string.Format("persons/v5/?accountTId={0}&pageIndex={1}", _accountTId, pageIndex));
 
             var people = JsonConvert.DeserializeObject<Persons>(jsonResponse.ToString());
 
@@ -677,7 +715,7 @@ namespace PULSEImport
 
             try
             {
-                var modelCount = 0;
+                int? modelCount = 0;
                 var pageIndex = 0;
 
                 do
@@ -686,9 +724,10 @@ namespace PULSEImport
 
                     var models = QueryExistingEquipmentModels(pageIndex);
 
-                    modelCount = models.metaInfo.totRsltSetCnt;
+                    modelCount = models?.metaInfo?.totRsltSetCnt;
 
-                    equipModels.AddRange(models.types);
+                    if (modelCount != null && modelCount > 0)
+                        equipModels.AddRange(models.types);
 
                 } while (modelCount > equipModels.Count);
             }
@@ -729,9 +768,42 @@ namespace PULSEImport
             EquipmentModel.ValueMember = "name"; // "tId";
         }
 
-        private OculusTypes LoadEquipmentTypes()
+        private List<OculusType> LoadEquipmentTypes()
         {
             Console.WriteLine("LoadEquipmentTypes");
+
+            var equipmentTypes = new List<OculusType>();
+
+            try
+            {
+                int? typeCount = 0;
+                var pageIndex = 0;
+
+                do
+                {
+                    pageIndex++;
+
+                    var types = QueryExistingEquipmentTypes(pageIndex);
+
+                    typeCount = types?.metaInfo?.totRsltSetCnt;
+
+                    if (typeCount != null && typeCount > 0)
+                        equipmentTypes.AddRange(types.types.ToList());
+
+                } while (typeCount > equipmentTypes.Count);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+
+            return equipmentTypes;
+        }
+
+        private OculusTypes QueryExistingEquipmentTypes(int pageIndex = 1)
+        {
+            Console.WriteLine("QueryExistingEquipmentTypes");
 
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AppAccessToken);
 
@@ -754,9 +826,42 @@ namespace PULSEImport
             EquipmentType.ValueMember = "name"; //"tId";
         }
 
-        private Models LoadVehicleModels()
+        private List<Model> LoadVehicleModels()
         {
             Console.WriteLine("LoadVehicleModels");
+
+            var vehicleModels = new List<Model>();
+
+            try
+            {
+                int? modelCount = 0;
+                var pageIndex = 0;
+
+                do
+                {
+                    pageIndex++;
+
+                    var models = QueryExistingVehicleModels(pageIndex);
+
+                    modelCount = models?.metaInfo?.totRsltSetCnt;
+
+                    if (modelCount != null && modelCount > 0)
+                        vehicleModels.AddRange(models.types.ToList());
+
+                } while (modelCount > vehicleModels.Count);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+
+            return vehicleModels;
+        }
+
+        private Models QueryExistingVehicleModels(int pageIndex = 1)
+        {
+            Console.WriteLine("QueryExistingVehicleModels");
 
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AppAccessToken);
 
@@ -779,9 +884,42 @@ namespace PULSEImport
             VehicleModel.ValueMember = "name"; // "tId";
         }
 
-        private OculusTypes LoadVehicleTypes()
+        private List<OculusType> LoadVehicleTypes()
         {
             Console.WriteLine("LoadVehicleTypes");
+
+            var vehicleTypes = new List<OculusType>();
+
+            try
+            {
+                int? typeCount = 0;
+                var pageIndex = 0;
+
+                do
+                {
+                    pageIndex++;
+
+                    var types = QueryExistingVehicleTypes(pageIndex);
+
+                    typeCount = types?.metaInfo?.totRsltSetCnt;
+
+                    if (typeCount != null && typeCount > 0)
+                        vehicleTypes.AddRange(types.types.ToList());
+
+                } while (typeCount > vehicleTypes.Count);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+
+            return vehicleTypes;
+        }
+
+        private OculusTypes QueryExistingVehicleTypes(int pageIndex = 1)
+        {
+            Console.WriteLine("QueryExistingVehicleTypes");
 
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AppAccessToken);
 
@@ -803,6 +941,63 @@ namespace PULSEImport
             VehicleType.DisplayMember = "name";
             VehicleType.ValueMember = "name"; // "tId";
         }
+
+        private List<OculusType> LoadPlaceTypes()
+        {
+            Console.WriteLine("QueryPlaceTypes");
+
+            var placeTypes = new List<OculusType>();
+
+            try
+            {
+                int? typeCount = 0;
+                var pageIndex = 0;
+
+                do
+                {
+                    pageIndex++;
+
+                    var types = QueryPlaceTypes(pageIndex);
+
+                    typeCount = types?.metaInfo?.totRsltSetCnt;
+
+                    if (typeCount != null && typeCount > 0)
+                        placeTypes.AddRange(types.types.ToList());
+
+                } while (typeCount > placeTypes.Count);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e);
+                throw;
+            }
+
+            return placeTypes;
+        }
+
+        private OculusTypes QueryPlaceTypes(int pageIndex = 1)
+        {
+            Console.WriteLine("LoadPlaceTypes");
+
+            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AppAccessToken);
+
+            // Request Accounts 
+            var jsonResponse = oculusApiRequest.ExecuteGET(
+                _configData.ApiUrl +
+                string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}", _accountTId, "TYPES", "PLACES"));
+
+            var types = JsonConvert.DeserializeObject<OculusAPI.Models.OculusTypes>(jsonResponse.ToString());
+
+            return types;
+        }
+
+        private void ShowPlaceTypes(OculusTypes types)
+        {
+            PlaceType.DataSource = types.types.OrderBy(t => t.name).ToList();
+            PlaceType.DisplayMember = "name";
+            PlaceType.ValueMember = "name";
+        }
+
         #endregion
 
         private void dtgAccounts_KeyDown(object sender, KeyEventArgs e)
@@ -887,8 +1082,6 @@ namespace PULSEImport
 
                                 fields.Add(pn);
                             }
-
-                            // TODO: Ignoring columns 2 & 3 for now
 
                             dtgDevices.Rows.Add(fields.ToArray());
                         }
@@ -1501,6 +1694,102 @@ namespace PULSEImport
         }
 
 
+        private void lnkPlacesUploadTemplate_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ProcessStartInfo sInfo =
+                new ProcessStartInfo("https://drive.google.com/open?id=1EMnfO28SYs6ksbzMEzwICWhgfENs_lAp");
+            Process.Start(sInfo);
+        }
+
+        private void ofdPlaces_FileOk(object sender, CancelEventArgs e)
+        {
+            this.Activate();
+            string[] files = ofdPlaces.FileNames;
+
+            var placeTypes = LoadPlaceTypes();
+
+            foreach (string file in files)
+            {
+                System.IO.FileInfo fileInfo = new FileInfo(file);
+
+                string csvData = File.ReadAllText(fileInfo.FullName);
+
+                var rows = csvData.Split('\n');
+
+                for (int i = 0; i <= rows.Count() - 1; i++)
+                {
+                    if (i > 0)
+                    {
+                        var row = rows[i];
+
+                        if (!string.IsNullOrEmpty(row))
+                        {
+                            var fields = new List<string>();
+
+                            var columns = row.Split(',');
+
+                            var name = columns[0];
+                            var type = columns[1];
+
+                            // Check for Name value
+                            fields.Add(name);
+
+                            // Place Type
+                            if (!string.IsNullOrEmpty(type))
+                            {
+                                var placeType = placeTypes.SingleOrDefault(pt =>
+                                    pt.name.Equals(type, StringComparison.InvariantCultureIgnoreCase));
+
+                                if (placeType != null)
+                                {
+                                    fields.Add(placeType.tId);
+                                }
+                                else
+                                {
+                                    fields.Add(type);
+                                }
+                            }
+                            else
+                            {
+                                fields.Add(type);
+                            }
+
+                            var columnCount = row.Split(',').Count();
+
+                            for (var c = 2; c < columnCount; c++)
+                            {
+                                fields.Add(columns[c]);
+                            }
+
+                            if (dtgPlaces.Columns.Count < fields.Count)
+                            {
+                                // Adding 2 to account for the buttons
+                                while (dtgPlaces.Columns.Count < (fields.Count + 2))
+                                {
+                                    AddPlacesColumns(dtgPlaces);
+                                }
+                            }
+
+                            dtgPlaces.Rows.Add(fields.ToArray());
+                        }
+                    }
+                }
+
+                UpdateStatusBar(
+                    string.Format("{0} row{1} ready for import.", rows.Count() - 1, rows.Count() - 1 > 1 ? "s" : ""));
+
+                break;
+            }
+        }
+
+        private void lnkUploadPlaces_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
+        {
+            ofdPlaces.Filter = "csv files (*.csv)|*.csv";
+            ofdPlaces.RestoreDirectory = true;
+
+            ofdPlaces.ShowDialog();
+        }
+
         #endregion
 
         // Submit button
@@ -1532,6 +1821,9 @@ namespace PULSEImport
 
                 if (dtgVehicleTypes.Rows.Count > 0 && !dtgVehicleTypes.Rows[0].IsNewRow)
                     ProcessVehicleTypes();
+
+                if (dtgPlaces.Rows.Count > 0 && !dtgPlaces.Rows[0].IsNewRow)
+                    ProcessPlaces();
 
             }
         }
@@ -2134,6 +2426,98 @@ namespace PULSEImport
         }
         #endregion
 
+        #region Places Events
+        private void dtgPlaces_CellEnter(object sender, DataGridViewCellEventArgs e)
+        {
+            StartEditingRow(sender, e);
+        }
+
+        private void dtgPlaces_CellEndEdit(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex < dtgPlaces.Rows.Count)
+            {
+                // Clear the row error in case the user presses ESC.   
+                dtgPlaces.Rows[e.RowIndex].ErrorText = String.Empty;
+            }
+        }
+
+        private void dtgPlaces_CellValidating(object sender, DataGridViewCellValidatingEventArgs e)
+        {
+            string headerText =
+                dtgPlaces.Columns[e.ColumnIndex].HeaderText;
+
+            // Abort validation if cell is not in the Name column.
+            if (!headerText.Equals("Name")) return;
+
+            // Confirm that the cell is not empty.
+            if (string.IsNullOrEmpty(e.FormattedValue.ToString()))
+            {
+                dtgPlaces.Rows[e.RowIndex].ErrorText =
+                    "Name must not be empty";
+                e.Cancel = true;
+            }
+        }
+
+        private void dtgPlaces_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            // Nothing here yet
+        }
+
+        private void dtgPlaces_CurrentCellDirtyStateChanged(object sender, EventArgs e)
+        {
+            if (this.dtgPlaces.IsCurrentCellDirty)
+            {
+                // This fires the cell value changed handler below
+                dtgPlaces.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            }
+        }
+
+        private void dtgPlaces_CellContentClick(object sender, DataGridViewCellEventArgs e)
+        {
+            var senderGrid = (DataGridView)sender;
+
+            if (senderGrid.Columns[e.ColumnIndex] is DataGridViewButtonColumn &&
+                e.RowIndex >= 0)
+            {
+                if (senderGrid.Columns[e.ColumnIndex].Name == "Delete")
+                {
+                    HandleRowDelete(sender, e);
+                }
+                else if (senderGrid.Columns[e.ColumnIndex].Name == "AddPoint")
+                {
+                    AddPlacesColumns(senderGrid);
+                }
+            }
+        }
+
+        private void AddPlacesColumns(DataGridView dataGrid)
+        {
+            var colCount = dataGrid.Columns.Count;
+
+            var pointNumber = (colCount / 2) - 1;
+
+            // Latitude
+            var newLatColumn = new DataGridViewTextBoxColumn();
+
+            newLatColumn.HeaderText = string.Format("Latitude {0}", pointNumber);
+            newLatColumn.Name = string.Format("Latitude {0}", pointNumber);
+
+            // Longitude
+            var newLonColumn = new DataGridViewTextBoxColumn();
+
+            newLonColumn.HeaderText = string.Format("Longitude {0}", pointNumber);
+            newLonColumn.Name = string.Format("Longitude {0}", pointNumber);
+
+            dataGrid.Columns.Insert((dataGrid.Columns.Count - 2), newLatColumn);
+            dataGrid.Columns.Insert((dataGrid.Columns.Count - 2), newLonColumn);
+        }
+
+        private void dtgPlaces_DataError(object sender, DataGridViewDataErrorEventArgs e)
+        {
+            e.Cancel = true;
+        }
+        #endregion
+
         private void StartEditingRow(object sender, DataGridViewCellEventArgs e)
         {
             bool validClick = (e.RowIndex != -1 && e.ColumnIndex != -1); //Make sure the clicked row/column is valid.
@@ -2218,78 +2602,9 @@ namespace PULSEImport
                                    NullValueHandling = NullValueHandling.Ignore
                                }) + " }";
 
-                try
-                {
-                    Log4NetHelper.LogDebug(Logger, body);
+                if (SaveToOculus(body, "sensors", sensors.Count, "sensors/v5"))
+                    dtgDevices.Rows.Clear();
 
-                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-                    UpdateStatusBar("Adding devices...", true);
-
-                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "sensors/v5", body);
-
-                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
-                    {
-                        Log4NetHelper.LogDebug(Logger, response.ToString());
-
-                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
-
-                        if (oculusResponse.statusCode == "201")
-                        {
-                            var msg = string.Format("{0} device{1} added!", sensors.Count,
-                                sensors.Count > 1 ? "s" : "");
-
-                            try
-                            {
-                                //// TODO: Setup associations...
-                                //// TODO: Can't deliver yet until we can get device TIds
-                                //AssociateDevices(oculusResponse);
-                            }
-                            catch (Exception e)
-                            {
-                                Console.WriteLine("Could not complete associations");
-                                Console.WriteLine(e);
-                                //throw;
-                            }
-
-
-                            // TODO: Generate the 1st event
-
-
-                            UpdateStatusBar(msg, false);
-
-                            dtgDevices.Rows.Clear();
-
-                            MessageBox.Show(msg, "Success!", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            LogText(string.Format("{0}: {1}",
-                                                    SafeType.SafeString(oculusResponse.statusCode),
-                                                    SafeType.SafeString(oculusResponse.statusDescr)));
-
-                            MessageBox.Show("There was a problem importing the data.");
-
-                            UpdateStatusBar("An error occurred");
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show("There was a problem importing the data.");
-
-                        UpdateStatusBar("An error occurred");
-                    }
-                }
-                catch (Exception exception)
-                {
-                    LogText(exception.Message);
-
-                    MessageBox.Show(exception.Message);
-                    Log4NetHelper.LogError(Logger, exception);
-                    UpdateStatusBar("");
-
-                    //throw;
-                }
             }
         }
 
@@ -2412,9 +2727,9 @@ namespace PULSEImport
                             descr = SafeType.SafeString(row.Cells[3].Value),
                             mdl = SafeType.SafeString(row.Cells[4].FormattedValue),
                             type = SafeType.SafeString(row.Cells[5].FormattedValue),
-                            mnf = model.typeData.mnf,
-                            mdlTId = model.tId,
-                            typeTId = type.tId
+                            mnf = model?.typeData.mnf,
+                            mdlTId = model?.tId,
+                            typeTId = type?.tId
                         });
                     }
                     catch (Exception exception)
@@ -2438,55 +2753,9 @@ namespace PULSEImport
                                    NullValueHandling = NullValueHandling.Ignore
                                }) + " }";
 
-                try
-                {
-                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+                if (SaveToOculus(body, "assets", equipment.Count, "assets/v4"))
+                    dtgEquipment.Rows.Clear();
 
-                    UpdateStatusBar("Adding equipment...", true);
-
-                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "assets/v4", body);
-
-                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
-                    {
-                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(SafeType.SafeString(response));
-
-                        if (oculusResponse.statusCode == "201")
-                        {
-                            UpdateStatusBar(string.Format("{0} equipment added!", equipment.Count));
-
-                            dtgEquipment.Rows.Clear();
-
-                            MessageBox.Show(string.Format("{0} equipment added!"), "Success!", MessageBoxButtons.OK,
-                                MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            LogText(string.Format("{0}: {1}",
-                                                    SafeType.SafeString(oculusResponse.statusCode),
-                                                    SafeType.SafeString(oculusResponse.statusDescr)));
-
-                            MessageBox.Show("There was a problem importing the data.");
-
-                            UpdateStatusBar("");
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show("There was a problem importing the data.");
-
-                        UpdateStatusBar("");
-                    }
-                }
-                catch (Exception exception)
-                {
-                    LogText(exception.Message);
-
-                    MessageBox.Show(exception.Message);
-                    UpdateStatusBar("Could not import Equipment data!");
-                    Log4NetHelper.LogError(Logger, exception);
-
-                    //throw;
-                }
             }
         }
 
@@ -2523,9 +2792,9 @@ namespace PULSEImport
                             descr = SafeType.SafeString(row.Cells[3].Value),
                             mdl = SafeType.SafeString(row.Cells[4].FormattedValue),
                             type = SafeType.SafeString(row.Cells[5].FormattedValue),
-                            mnf = model.typeData.mnf,
-                            mdlTId = model.tId,
-                            typeTId = type.tId
+                            mnf = model?.typeData.mnf,
+                            mdlTId = model?.tId,
+                            typeTId = type?.tId
                         });
                     }
                     catch (Exception exception)
@@ -2549,58 +2818,9 @@ namespace PULSEImport
                                    NullValueHandling = NullValueHandling.Ignore
                                }) + " }";
 
-                try
-                {
-                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-                    UpdateStatusBar("Adding vehicles...", true);
-
-                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "vehicles/v5", body);
-
-                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
-                    {
-                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(SafeType.SafeString(response));
-
-                        if (oculusResponse.statusCode == "201")
-                        {
-                            UpdateStatusBar(string.Format("{0} vehicle{1} added!", vehicles.Count,
-                                vehicles.Count > 1 ? "s" : ""));
-
-                            dtgVehicles.Rows.Clear();
-
-                            MessageBox.Show(string.Format("{0} vehicle{1} added!", vehicles.Count,
-                                    vehicles.Count > 1 ? "s" : ""), "Success!", MessageBoxButtons.OK,
-                                MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            LogText(string.Format("{0}: {1}",
-                                                    SafeType.SafeString(oculusResponse.statusCode),
-                                                    SafeType.SafeString(oculusResponse.statusDescr)));
-
-                            MessageBox.Show("There was a problem importing the data.");
-
-                            UpdateStatusBar("");
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show("There was a problem importing the data.");
-
-                        UpdateStatusBar("");
-                    }
-                }
-                catch (Exception exception)
-                {
-                    LogText(exception.Message);
-                    UpdateStatusBar("Could not import Vehicle data!");
-                    MessageBox.Show(exception.Message);
-                    Log4NetHelper.LogError(Logger, exception);
-
-                    //throw;
-                }
+                if (SaveToOculus(body, "assets", vehicles.Count, "vehicles/v4"))
+                    dtgVehicles.Rows.Clear();
             }
-
         }
 
         // Process PEOPLE
@@ -2662,56 +2882,8 @@ namespace PULSEImport
                                    NullValueHandling = NullValueHandling.Ignore
                                }) + " }";
 
-                try
-                {
-                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-                    UpdateStatusBar("Adding people...", true);
-
-                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "persons/v5", body);
-
-                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
-                    {
-                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(SafeType.SafeString(response));
-
-                        if (oculusResponse.statusCode == "201")
-                        {
-                            UpdateStatusBar(string.Format("{0} {1} added!", people.Count,
-                                people.Count > 1 ? "people" : "person"));
-
-                            dtgPeople.Rows.Clear();
-
-                            MessageBox.Show(string.Format("{0} {1} added!", people.Count,
-                                    people.Count > 1 ? "people" : "person"), "Success!", MessageBoxButtons.OK,
-                                MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            LogText(string.Format("{0}: {1}",
-                                SafeType.SafeString(oculusResponse.statusCode),
-                                SafeType.SafeString(oculusResponse.statusDescr)));
-
-                            MessageBox.Show("There was a problem importing the data.");
-
-                            UpdateStatusBar("");
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show("There was a problem importing the data.");
-
-                        UpdateStatusBar("");
-                    }
-                }
-                catch (Exception exception)
-                {
-                    LogText(exception.Message);
-                    UpdateStatusBar("Could not import People data!");
-                    MessageBox.Show(exception.Message);
-                    Log4NetHelper.LogError(Logger, exception);
-
-                    //throw;
-                }
+                if (SaveToOculus(body, "people", people.Count, "persons/v5"))
+                    dtgPeople.Rows.Clear();
             }
         }
 
@@ -2810,61 +2982,9 @@ namespace PULSEImport
                         NullValueHandling = NullValueHandling.Ignore
                     });
 
-                try
-                {
-                    Log4NetHelper.LogDebug(Logger, body);
+                if (SaveToOculus(body, "equipment models", eModelList.types.Count, "types/v1"))
+                    dtgEquipmentModels.Rows.Clear();
 
-                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-                    UpdateStatusBar("Adding models...", true);
-
-                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "types/v1", body);
-
-                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
-                    {
-                        Log4NetHelper.LogDebug(Logger, response.ToString());
-
-                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
-
-                        if (oculusResponse.statusCode == "201")
-                        {
-                            var msg = string.Format("{0} model{1} added!", eModels.Count,
-                                eModels.Count > 1 ? "s" : "");
-
-                            UpdateStatusBar(msg, false);
-
-                            dtgEquipmentModels.Rows.Clear();
-
-                            MessageBox.Show(msg, "Success!", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            LogText(string.Format("{0}: {1}",
-                                SafeType.SafeString(oculusResponse.statusCode),
-                                SafeType.SafeString(oculusResponse.statusDescr)));
-
-                            MessageBox.Show("There was a problem importing the data.");
-
-                            UpdateStatusBar("An error occurred");
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show("There was a problem importing the data.");
-
-                        UpdateStatusBar("An error occurred");
-                    }
-                }
-                catch (Exception exception)
-                {
-                    LogText(exception.Message);
-
-                    MessageBox.Show(exception.Message);
-                    Log4NetHelper.LogError(Logger, exception);
-                    UpdateStatusBar("");
-
-                    //throw;
-                }
             }
             else
             {
@@ -2994,61 +3114,8 @@ namespace PULSEImport
                         NullValueHandling = NullValueHandling.Ignore
                     });
 
-                try
-                {
-                    Log4NetHelper.LogDebug(Logger, body);
-
-                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-                    UpdateStatusBar("Adding types...", true);
-
-                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "types/v1", body);
-
-                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
-                    {
-                        Log4NetHelper.LogDebug(Logger, response.ToString());
-
-                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
-
-                        if (oculusResponse.statusCode == "201")
-                        {
-                            var msg = string.Format("{0} type{1} added!", eTypes.Count,
-                                eTypes.Count > 1 ? "s" : "");
-
-                            UpdateStatusBar(msg, false);
-
-                            dtgEquipmentTypes.Rows.Clear();
-
-                            MessageBox.Show(msg, "Success!", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            LogText(string.Format("{0}: {1}",
-                                SafeType.SafeString(oculusResponse.statusCode),
-                                SafeType.SafeString(oculusResponse.statusDescr)));
-
-                            MessageBox.Show("There was a problem importing the data.");
-
-                            UpdateStatusBar("An error occurred");
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show("There was a problem importing the data.");
-
-                        UpdateStatusBar("An error occurred");
-                    }
-                }
-                catch (Exception exception)
-                {
-                    LogText(exception.Message);
-
-                    MessageBox.Show(exception.Message);
-                    Log4NetHelper.LogError(Logger, exception);
-                    UpdateStatusBar("");
-
-                    //throw;
-                }
+                if (SaveToOculus(body, "equipment types", eTypeList.types.Count, "types/v1"))
+                    dtgEquipmentTypes.Rows.Clear();
             }
             else
             {
@@ -3187,61 +3254,8 @@ namespace PULSEImport
                         NullValueHandling = NullValueHandling.Ignore
                     });
 
-                try
-                {
-                    Log4NetHelper.LogDebug(Logger, body);
-
-                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-                    UpdateStatusBar("Adding models...", true);
-
-                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "types/v1", body);
-
-                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
-                    {
-                        Log4NetHelper.LogDebug(Logger, response.ToString());
-
-                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
-
-                        if (oculusResponse.statusCode == "201")
-                        {
-                            var msg = string.Format("{0} model{1} added!", eModels.Count,
-                                eModels.Count > 1 ? "s" : "");
-
-                            UpdateStatusBar(msg, false);
-
-                            dtgVehicleModels.Rows.Clear();
-
-                            MessageBox.Show(msg, "Success!", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            LogText(string.Format("{0}: {1}",
-                                SafeType.SafeString(oculusResponse.statusCode),
-                                SafeType.SafeString(oculusResponse.statusDescr)));
-
-                            MessageBox.Show("There was a problem importing the data.");
-
-                            UpdateStatusBar("An error occurred");
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show("There was a problem importing the data.");
-
-                        UpdateStatusBar("An error occurred");
-                    }
-                }
-                catch (Exception exception)
-                {
-                    LogText(exception.Message);
-
-                    MessageBox.Show(exception.Message);
-                    Log4NetHelper.LogError(Logger, exception);
-                    UpdateStatusBar("");
-
-                    //throw;
-                }
+                if (SaveToOculus(body, "vehicle models", vModelList.types.Count, "types/v1"))
+                    dtgVehicleModels.Rows.Clear();
             }
             else
             {
@@ -3371,61 +3385,8 @@ namespace PULSEImport
                         NullValueHandling = NullValueHandling.Ignore
                     });
 
-                try
-                {
-                    Log4NetHelper.LogDebug(Logger, body);
-
-                    var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-                    UpdateStatusBar("Adding types...", true);
-
-                    var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + "types/v1", body);
-
-                    if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
-                    {
-                        Log4NetHelper.LogDebug(Logger, response.ToString());
-
-                        var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(response.ToString());
-
-                        if (oculusResponse.statusCode == "201")
-                        {
-                            var msg = string.Format("{0} type{1} added!", vTypes.Count,
-                                vTypes.Count > 1 ? "s" : "");
-
-                            UpdateStatusBar(msg, false);
-
-                            dtgVehicleTypes.Rows.Clear();
-
-                            MessageBox.Show(msg, "Success!", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        }
-                        else
-                        {
-                            LogText(string.Format("{0}: {1}",
-                                SafeType.SafeString(oculusResponse.statusCode),
-                                SafeType.SafeString(oculusResponse.statusDescr)));
-
-                            MessageBox.Show("There was a problem importing the data.");
-
-                            UpdateStatusBar("An error occurred");
-                        }
-                    }
-                    else
-                    {
-                        MessageBox.Show("There was a problem importing the data.");
-
-                        UpdateStatusBar("An error occurred");
-                    }
-                }
-                catch (Exception exception)
-                {
-                    LogText(exception.Message);
-
-                    MessageBox.Show(exception.Message);
-                    Log4NetHelper.LogError(Logger, exception);
-                    UpdateStatusBar("");
-
-                    //throw;
-                }
+                if (SaveToOculus(body, "vehicle types", vTypeList.types.Count, "types/v1"))
+                    dtgVehicleTypes.Rows.Clear();
             }
             else
             {
@@ -3469,6 +3430,152 @@ namespace PULSEImport
             }
         }
 
+
+        // Process Places
+        private void ProcessPlaces()
+        {
+            // LoadExistingPlaces()
+
+            var placeTypes = LoadPlaceTypes();
+
+            var places = new List<Place>();
+
+            foreach (DataGridViewRow row in dtgPlaces.Rows)
+            {
+                try
+                {
+                    // Ensure that the place has a name and at least 1 point
+                    if (!row.IsNewRow && row.Cells[0].Value != null &&
+                        row.Cells[2].Value != null && row.Cells[3].Value != null)
+                    {
+                        var type = placeTypes.SingleOrDefault(pt =>
+                            pt.name == row.Cells[1].FormattedValue.ToString());
+
+                        var place = new Place()
+                        {
+                            accountTId = _accountTId,
+                            name = SafeType.SafeString(row.Cells[0].Value),
+                            type = SafeType.SafeString(row.Cells[1].FormattedValue.ToString()),
+                            typeTId = type?.tId
+                        };
+
+                        var vertices = new List<Vertex>();
+
+                        foreach (DataGridViewColumn col in dtgPlaces.Columns)
+                        {
+                            if (col.Name.Contains("Latitude"))
+                            {
+                                var vertex = new Vertex();
+
+                                var lonCol = dtgPlaces.Columns[col.Index + 1];
+
+                                // Make sure both are populated
+                                if (!string.IsNullOrEmpty(SafeType.SafeString(row.Cells[col.Index].Value)) &&
+                                    !string.IsNullOrEmpty(SafeType.SafeString(row.Cells[lonCol.Index].Value)))
+                                {
+                                    vertex.lat = Convert.ToDouble(SafeType.SafeString(row.Cells[col.Index].Value));
+                                    vertex.lon = Convert.ToDouble(SafeType.SafeString(row.Cells[lonCol.Index].Value));
+
+                                    vertices.Add(vertex);
+                                }
+                            }
+                        }
+
+                        place.vertices = vertices;
+
+                        if (place.vertices.Count == 1)
+                        {
+                            place.geometry = "POINT";
+                        }
+                        else
+                        {
+                            place.geometry = "POLYGON";
+                        }
+
+                        places.Add(place);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    LogText("Could not add row: " + row.Index + 1);
+
+                    Console.WriteLine("Could not add row: " + row.Index + 1);
+                    Console.WriteLine(exception);
+                    Log4NetHelper.LogError(Logger, exception);
+
+                    //throw;
+                }
+            }
+
+            if (places.Any())
+            {
+                var body = "{ \"places\": " + JsonConvert.SerializeObject(places, Formatting.None,
+                               new JsonSerializerSettings
+                               {
+                                   NullValueHandling = NullValueHandling.Ignore
+                               }) + " }";
+
+                if (SaveToOculus(body, "places", places.Count, "places/v5"))
+                    dtgPlaces.Rows.Clear();
+            }
+        }
+
+        private bool SaveToOculus(string body, string objectType, int objectCount, string apiSuffix)
+        {
+            try
+            {
+                var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+                UpdateStatusBar(string.Format("Adding {0}...", objectType), true);
+
+                var response = oculusApiRequest.ExecutePOST(_configData.ApiUrl + apiSuffix, body);
+
+                if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
+                {
+                    var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(SafeType.SafeString(response));
+
+                    if (oculusResponse.statusCode == "201")
+                    {
+                        var statusMessage = string.Format("{0} {1} added!", objectCount, objectType);
+
+                        UpdateStatusBar(statusMessage);
+
+                        MessageBox.Show(statusMessage, "Success!", MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+
+                        return true;
+                    }
+                    else
+                    {
+                        LogText(string.Format("{0}: {1}",
+                                                SafeType.SafeString(oculusResponse.statusCode),
+                                                SafeType.SafeString(oculusResponse.statusDescr)));
+
+                        MessageBox.Show("There was a problem importing the data.");
+
+                        UpdateStatusBar("");
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("There was a problem importing the data.");
+
+                    UpdateStatusBar("");
+                }
+            }
+            catch (Exception exception)
+            {
+                LogText(exception.Message);
+
+                MessageBox.Show(exception.Message);
+                UpdateStatusBar("Could not import Equipment data!");
+                Log4NetHelper.LogError(Logger, exception);
+
+                //throw;
+            }
+
+            return false;
+        }
 
         #region UI Logic
         private void tabControl1_Selecting(object sender, TabControlCancelEventArgs e)
@@ -3646,8 +3753,6 @@ namespace PULSEImport
             //InstallUpdateSyncWithInfo();
             LoadExistingDevices();
         }
-
-
         #endregion
 
         private void pnlDevices_Click(object sender, EventArgs e)
@@ -3976,12 +4081,13 @@ namespace PULSEImport
 
             System.IO.File.WriteAllText(file.FullName, sb.ToString());
 
-            if (MessageBox.Show("You file has been created. Would you like to open the export folder now?", "File Created", MessageBoxButtons.YesNo)
+            if (MessageBox.Show("Your file has been created. Would you like to open the export folder now?", "File Created", MessageBoxButtons.YesNo)
                 == DialogResult.Yes)
             {
                 System.Diagnostics.Process.Start(baseDir);
             }
         }
+
     }
 
     #region Classes

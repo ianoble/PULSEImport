@@ -30,8 +30,8 @@
     <MinimumRequiredVersion>1.0.1.0</MinimumRequiredVersion>
     <CreateWebPageOnPublish>true</CreateWebPageOnPublish>
     <WebPage>publish.htm</WebPage>
-    <ApplicationRevision>30</ApplicationRevision>
-    <ApplicationVersion>1.0.1.30</ApplicationVersion>
+    <ApplicationRevision>32</ApplicationRevision>
+    <ApplicationVersion>1.0.1.32</ApplicationVersion>
     <UseApplicationTrust>true</UseApplicationTrust>
     <CreateDesktopShortcut>true</CreateDesktopShortcut>
     <PublishWizardCompleted>true</PublishWizardCompleted>
@@ -114,6 +114,12 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AssociationsGrid.cs">
+      <SubType>UserControl</SubType>
+    </Compile>
+    <Compile Include="AssociationsGrid.Designer.cs">
+      <DependentUpon>AssociationsGrid.cs</DependentUpon>
+    </Compile>
     <Compile Include="Models\ConfigData.cs" />
     <Compile Include="Models\EnvirontmentConfig.cs" />
     <Compile Include="Form1.cs">
@@ -138,6 +144,9 @@
       <DependentUpon>Resize.cs</DependentUpon>
     </Compile>
     <Compile Include="SafeType.cs" />
+    <EmbeddedResource Include="AssociationsGrid.resx">
+      <DependentUpon>AssociationsGrid.cs</DependentUpon>
+    </EmbeddedResource>
     <EmbeddedResource Include="Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
     </EmbeddedResource>
