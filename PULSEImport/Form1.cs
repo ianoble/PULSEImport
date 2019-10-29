@@ -14,12 +14,12 @@ using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using PULSEImport.Functions;
 
 namespace PULSEImport
 {
     public partial class Form1 : Form
     {
-
         private static readonly ILog Logger = LogManager.GetLogger(MethodBase.GetCurrentMethod().DeclaringType);
 
         //private string apiUrl = "";
@@ -29,11 +29,13 @@ namespace PULSEImport
         //private string oculusClientId = "oLXcXnpbxq84WLIMKbAgRlHBPq0a";
         //private string oculusSecret = "PteTFNyWMpyog0RlHn5YkVfsVBoa";
 
-        private ConfigData _configData;
+        public ConfigData _configData;
 
         private string _environtmentName;
         private string _accountTId;
         private string _accountName;
+
+        private PulseObjects pulseObjects;
 
         private const string ExportDate = "yyyy-dd-MM HH-mm-ss";
 
@@ -154,6 +156,8 @@ namespace PULSEImport
 
             _configData = EnvironmentConfig.ConfigData;
 
+            pulseObjects = new PulseObjects(_configData);
+
             //if (!string.IsNullOrEmpty(_configData.AccessToken))
             //{
             grpAccounts.Enabled = true;
@@ -192,7 +196,7 @@ namespace PULSEImport
             var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
 
             // Request Accounts 
-            var jsonResponse = oculusApiRequest.ExecuteGET(_configData.ApiUrl + "accounts/v4/?name=" + account);
+            var jsonResponse = oculusApiRequest.ExecuteGET(_configData.AccountsApiUrl + "accounts/v5/?name=" + System.Uri.EscapeDataString(account));
 
             var accounts = JsonConvert.DeserializeObject<OculusAPI.Models.Accounts>(jsonResponse.ToString());
 
@@ -276,6 +280,8 @@ namespace PULSEImport
             _accountTId = dtgAccounts.SelectedRows[0].Cells[1].Value.ToString();
             _accountName = dtgAccounts.SelectedRows[0].Cells[0].Value.ToString();
 
+            _configData.AccountTId = _accountTId;
+
             lblAccountName.Text = _accountName;
             lblAccountName2.Text = _accountName;
 
@@ -321,11 +327,13 @@ namespace PULSEImport
 
         private async void materialTabControl1_SelectedIndexChangedAsync(object sender, EventArgs e)
         {
+
             if (dtgAccounts.SelectedRows.Count == 0)
             {
                 materialTabControl1.SelectTab(0);
             }
 
+            // Export Data
             if (materialTabControl1.SelectedIndex == 2)
             {
                 UpdateStatusBar("Loading data...", true);
@@ -337,7 +345,9 @@ namespace PULSEImport
                 lblVehicleModels.Text = VehicleModels.Count.ToString();
                 lblVehicleTypes.Text = VehicleTypes.Count.ToString();
 
-                await Task.Run(() => LoadExistingDevices());
+                var pulseObjects = new PulseObjects(_configData);
+
+                AccountDevices = await Task.Run(() => pulseObjects.LoadExistingDevices());
                 await Task.Run(() => LoadExistingVehicles());
                 await Task.Run(() => LoadExistingEquipment());
                 await Task.Run(() => LoadExistingPeople());
@@ -350,6 +360,12 @@ namespace PULSEImport
                 flpExportTiles.Enabled = true;
 
                 UpdateStatusBar("Ready for exports!");
+            }
+
+            // Associations
+            if (materialTabControl1.SelectedIndex == 3)
+            {
+
             }
         }
 
@@ -366,7 +382,7 @@ namespace PULSEImport
         {
             Console.WriteLine("SetupImportGrids");
 
-            List<Model> models = LoadDeviceModels(); // await Task.Run(() => LoadDeviceModels());
+            List<Model> models = pulseObjects.LoadDeviceModels(); // await Task.Run(() => LoadDeviceModels());
 
             ShowDeviceModels(models);
 
@@ -385,58 +401,6 @@ namespace PULSEImport
             ShowPlaceTypes(new OculusTypes() { types = placeTypes });
         }
 
-
-        private List<Model> LoadDeviceModels()
-        {
-            Console.WriteLine("LoadDeviceModels");
-
-            var deviceModels = new List<Model>();
-
-            try
-            {
-                var modelCount = 0;
-                var pageIndex = 0;
-
-                do
-                {
-                    pageIndex++;
-
-                    var models = QuerySensorModels(pageIndex); // await Task.Run(() => QueryExistingSensors(pageIndex));
-
-                    modelCount = models.metaInfo.totRsltSetCnt;
-
-                    deviceModels.AddRange(models.types.ToList());
-
-                } while (modelCount > deviceModels.Count);
-
-                Console.WriteLine("Device Models: " + deviceModels.Count);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                //throw;
-            }
-
-            return deviceModels;
-        }
-
-        private Models QuerySensorModels(int pageIndex = 1)
-        {
-            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-            var oculusTId = _configData.OculusTId; // "58240ee5e4b01e7825f67da6";
-
-            // Request Accounts 
-            var jsonResponse = oculusApiRequest.ExecuteGET(
-                _configData.ApiUrl +
-                //_configData.PULSEApiUrl +
-                //string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}", oculusTId, "MODELS", "SENSORS"));
-                string.Format("types/v1?type={0}&targetObjCat={1}&pageIndex={2}", "MODELS", "SENSORS", pageIndex));
-
-            var models = JsonConvert.DeserializeObject<OculusAPI.Models.Models>(jsonResponse.ToString());
-
-            return models;
-        }
 
         private void ShowDeviceModels(List<Model> deviceModels)
         {
@@ -531,52 +495,6 @@ namespace PULSEImport
             }
         }
 
-        private async void LoadExistingDevices()
-        {
-            Console.WriteLine("LoadExistingDevices");
-
-            try
-            {
-                var deviceCount = 0;
-                AccountDevices = new List<Sensor>();
-                var pageIndex = 0;
-
-                do
-                {
-                    pageIndex++;
-
-                    var devices = QueryExistingSensors(pageIndex); // await Task.Run(() => QueryExistingSensors(pageIndex));
-
-                    deviceCount = devices.metaInfo.totRsltSetCnt;
-
-                    AccountDevices.AddRange(devices.sensors.ToList());
-
-                } while (deviceCount > AccountDevices.Count);
-
-                Console.WriteLine("Devices: " + AccountDevices.Count);
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine(e);
-                //throw;
-            }
-        }
-
-        private Sensors QueryExistingSensors(int pageIndex = 1)
-        {
-            Console.WriteLine("QueryExistingSensors");
-
-            var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
-
-            var jsonResponse =
-                oculusApiRequest.ExecuteGET(_configData.ApiUrl +
-                                            string.Format("sensors/v5/?accountTId={0}&pageIndex={1}", _accountTId, pageIndex));
-
-            var devices = JsonConvert.DeserializeObject<OculusAPI.Models.Sensors>(jsonResponse.ToString());
-
-            return devices;
-        }
-
         private async void LoadExistingVehicles()
         {
             Console.WriteLine("LoadExistingVehicles");
@@ -591,13 +509,13 @@ namespace PULSEImport
                 {
                     pageIndex++;
 
-                    var vehicles = QueryExistingVehicles(pageIndex); // await Task.Run(() => QueryExistingSensors(pageIndex));
+                    var vehicles = QueryExistingVehicles(pageIndex);
 
                     vehicleCount = vehicles.MetaInfo.totRsltSetCnt;
 
                     AccountVehicles.AddRange(vehicles.vehicles.ToList());
 
-                } while (vehicleCount > AccountDevices.Count);
+                } while (vehicleCount > AccountVehicles.Count);
 
                 Console.WriteLine("Vehicles: " + AccountVehicles.Count);
             }
@@ -662,7 +580,7 @@ namespace PULSEImport
 
             var jsonResponse =
                 oculusApiRequest.ExecuteGET(_configData.ApiUrl +
-                                            string.Format("assets/v4/?accountTId={0}&pageIndex={1}", _accountTId, pageIndex));
+                                            string.Format("assets/v5/?accountTId={0}&pageIndex={1}", _accountTId, pageIndex));
 
             var equipment = JsonConvert.DeserializeObject<Assets>(jsonResponse.ToString());
 
@@ -750,7 +668,7 @@ namespace PULSEImport
 
             // Request Accounts 
             var jsonResponse = oculusApiRequest.ExecuteGET(
-                _configData.ApiUrl +
+                _configData.PULSEApiUrl +
                 string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}&pageSize=1000&pageIndex={3}", _accountTId, "MODELS",
                     "ASSETS", pageIndex));
 
@@ -809,7 +727,7 @@ namespace PULSEImport
 
             // Request Accounts 
             var jsonResponse = oculusApiRequest.ExecuteGET(
-                _configData.ApiUrl +
+                _configData.PULSEApiUrl +
                 string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}&pageSize=1000", _accountTId, "TYPES", "ASSETS"));
 
             var types = JsonConvert.DeserializeObject<OculusAPI.Models.OculusTypes>(jsonResponse.ToString());
@@ -867,7 +785,7 @@ namespace PULSEImport
 
             // Request Accounts 
             var jsonResponse = oculusApiRequest.ExecuteGET(
-                _configData.ApiUrl +
+                _configData.PULSEApiUrl +
                 string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}", _accountTId, "MODELS", "VEHICLES"));
 
             var models = JsonConvert.DeserializeObject<OculusAPI.Models.Models>(jsonResponse.ToString());
@@ -925,7 +843,7 @@ namespace PULSEImport
 
             // Request Accounts 
             var jsonResponse = oculusApiRequest.ExecuteGET(
-                _configData.ApiUrl +
+                _configData.PULSEApiUrl +
                 string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}", _accountTId, "TYPES", "VEHICLES"));
 
             var types = JsonConvert.DeserializeObject<OculusAPI.Models.OculusTypes>(jsonResponse.ToString());
@@ -983,7 +901,7 @@ namespace PULSEImport
 
             // Request Accounts 
             var jsonResponse = oculusApiRequest.ExecuteGET(
-                _configData.ApiUrl +
+                _configData.PULSEApiUrl +
                 string.Format("types/v1?accountTId={0}&type={1}&targetObjCat={2}", _accountTId, "TYPES", "PLACES"));
 
             var types = JsonConvert.DeserializeObject<OculusAPI.Models.OculusTypes>(jsonResponse.ToString());
@@ -1825,6 +1743,8 @@ namespace PULSEImport
                 if (dtgPlaces.Rows.Count > 0 && !dtgPlaces.Rows[0].IsNewRow)
                     ProcessPlaces();
 
+                if (dtgAssociations.Rows.Count > 0 && !dtgAssociations.Rows[0].IsNewRow)
+                    ProcessAssociations();
             }
         }
 
@@ -2536,7 +2456,7 @@ namespace PULSEImport
         private void ProcessDevices()
         {
             // Load devices to make sure there are no duplicates
-            LoadExistingDevices();
+            AccountDevices = pulseObjects.LoadExistingDevices();
 
             var validDevices = true;
 
@@ -2698,13 +2618,40 @@ namespace PULSEImport
         {
             LoadExistingEquipment();
 
+            var newEquipment = true;
+
             var equipment = new List<equipment>();
+            var equipmentUpdate = new List<equipment>();
 
             foreach (DataGridViewRow row in dtgEquipment.Rows)
             {
                 // Only process if there is a Serial Number
                 if (row.Cells[1].Value != null)
                 {
+                    try
+                    {
+                        var sn = SafeType.SafeString(row.Cells[1].Value);
+
+                        // Check if device is already in the system...
+                        if (AccountEquipment.Any(d =>
+                            d.sn.Equals(sn, StringComparison.InvariantCultureIgnoreCase)))
+                        {
+                            newEquipment = false;
+
+                            //var errorText = string.Format("{0} is a duplicate Serial Number.", sn);
+
+                            //LogText(errorText);
+
+                            //row.ErrorText = errorText;
+                            ////row.Cells[0].ErrorText = errorText;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                        throw;
+                    }
+
                     try
                     {
                         Console.WriteLine(SafeType.SafeString(row.Cells[0].Value));
@@ -2718,19 +2665,60 @@ namespace PULSEImport
                         var type = EquipmentTypes.SingleOrDefault(vm =>
                             vm.name == row.Cells[5].FormattedValue.ToString());
 
-                        equipment.Add(new PULSEImport.equipment()
+                        if (newEquipment)
                         {
-                            accountTId = _accountTId,
-                            name = string.IsNullOrEmpty(name) ? sn : name,
-                            sn = sn,
-                            mdlYr = SafeType.SafeString(row.Cells[2].Value),
-                            descr = SafeType.SafeString(row.Cells[3].Value),
-                            mdl = SafeType.SafeString(row.Cells[4].FormattedValue),
-                            type = SafeType.SafeString(row.Cells[5].FormattedValue),
-                            mnf = model?.typeData.mnf,
-                            mdlTId = model?.tId,
-                            typeTId = type?.tId
-                        });
+                            equipment.Add(new PULSEImport.equipment()
+                            {
+                                accountTId = _accountTId,
+                                name = string.IsNullOrEmpty(name) ? sn : name,
+                                sn = sn,
+                                mdlYr = SafeType.SafeString(row.Cells[2].Value),
+                                descr = SafeType.SafeString(row.Cells[3].Value),
+                                mdl = SafeType.SafeString(row.Cells[4].FormattedValue),
+                                type = SafeType.SafeString(row.Cells[5].FormattedValue),
+                                mnf = model?.typeData.mnf,
+                                mdlTId = model?.tId,
+                                typeTId = type?.tId
+                            });
+                        }
+                        else
+                        {
+                            var equip = AccountEquipment.SingleOrDefault(d =>
+                                d.sn.Equals(sn, StringComparison.InvariantCultureIgnoreCase));
+
+                            var equipmentTId = equip.tId;
+
+                            var equipmentRecord = new PULSEImport.equipment()
+                            {
+                                accountTId = _accountTId,
+                                sn = sn,
+                                tId = equipmentTId
+                            };
+
+                            if (!string.IsNullOrEmpty(SafeType.SafeString(row.Cells[2].Value)))
+                                equipmentRecord.mdlYr = SafeType.SafeString(row.Cells[2].Value);
+
+                            if (!string.IsNullOrEmpty(SafeType.SafeString(row.Cells[3].Value)))
+                                equipmentRecord.descr = SafeType.SafeString(row.Cells[3].Value);
+
+                            if (!string.IsNullOrEmpty(SafeType.SafeString(row.Cells[4].FormattedValue)))
+                                equipmentRecord.mdl = SafeType.SafeString(row.Cells[4].FormattedValue);
+
+                            if (!string.IsNullOrEmpty(SafeType.SafeString(row.Cells[5].FormattedValue)))
+                                equipmentRecord.type = SafeType.SafeString(row.Cells[5].FormattedValue);
+
+                            if (model != null)
+                            {
+                                equipmentRecord.mnf = model?.typeData.mnf;
+                                equipmentRecord.mdlTId = model?.tId;
+                            }
+
+                            if (type != null)
+                                equipmentRecord.typeTId = type?.tId;
+
+                            equipmentUpdate.Add(equipmentRecord);
+
+                        }
                     }
                     catch (Exception exception)
                     {
@@ -2753,9 +2741,21 @@ namespace PULSEImport
                                    NullValueHandling = NullValueHandling.Ignore
                                }) + " }";
 
-                if (SaveToOculus(body, "assets", equipment.Count, "assets/v4"))
+                if (SaveToOculus(body, "assets", equipment.Count, "assets/v5"))
                     dtgEquipment.Rows.Clear();
 
+            }
+
+            if (equipmentUpdate.Any())
+            {
+                var body = "{ \"assets\": " + JsonConvert.SerializeObject(equipmentUpdate, Formatting.None,
+                               new JsonSerializerSettings
+                               {
+                                   NullValueHandling = NullValueHandling.Ignore
+                               }) + " }";
+
+                if (UpdateOculus(body, "assets", equipmentUpdate.Count, "assets/v5"))
+                    dtgEquipment.Rows.Clear();
             }
         }
 
@@ -2764,12 +2764,39 @@ namespace PULSEImport
         {
             LoadExistingVehicles();
 
+            var newVehicle = true;
+
             var vehicles = new List<vehicle>();
+            var vehicleUpdate = new List<vehicle>();
 
             foreach (DataGridViewRow row in dtgVehicles.Rows)
             {
                 if (row.Cells[1].Value != null)
                 {
+                    try
+                    {
+                        var vin = SafeType.SafeString(row.Cells[1].Value);
+
+                        // Check if device is already in the system...
+                        if (AccountVehicles.Any(d =>
+                            d.sn.Equals(vin, StringComparison.InvariantCultureIgnoreCase)))
+                        {
+                            newVehicle = false;
+
+                            //var errorText = string.Format("{0} is a duplicate Serial Number.", sn);
+
+                            //LogText(errorText);
+
+                            //row.ErrorText = errorText;
+                            ////row.Cells[0].ErrorText = errorText;
+                        }
+                    }
+                    catch (Exception e)
+                    {
+                        Console.WriteLine(e);
+                        throw;
+                    }
+
                     try
                     {
                         Console.WriteLine(SafeType.SafeString(row.Cells[1].Value));
@@ -2783,19 +2810,60 @@ namespace PULSEImport
                         var type = VehicleTypes.SingleOrDefault(vm =>
                             vm.name == row.Cells[5].FormattedValue.ToString());
 
-                        vehicles.Add(new PULSEImport.vehicle()
+                        if (newVehicle)
                         {
-                            accountTId = _accountTId,
-                            name = string.IsNullOrEmpty(name) ? vin : name,
-                            sn = vin,
-                            mdlYr = SafeType.SafeString(row.Cells[2].Value),
-                            descr = SafeType.SafeString(row.Cells[3].Value),
-                            mdl = SafeType.SafeString(row.Cells[4].FormattedValue),
-                            type = SafeType.SafeString(row.Cells[5].FormattedValue),
-                            mnf = model?.typeData.mnf,
-                            mdlTId = model?.tId,
-                            typeTId = type?.tId
-                        });
+                            vehicles.Add(new PULSEImport.vehicle()
+                            {
+                                accountTId = _accountTId,
+                                name = string.IsNullOrEmpty(name) ? vin : name,
+                                sn = vin,
+                                mdlYr = SafeType.SafeString(row.Cells[2].Value),
+                                descr = SafeType.SafeString(row.Cells[3].Value),
+                                mdl = SafeType.SafeString(row.Cells[4].FormattedValue),
+                                type = SafeType.SafeString(row.Cells[5].FormattedValue),
+                                mnf = model?.typeData.mnf,
+                                mdlTId = model?.tId,
+                                typeTId = type?.tId
+                            });
+                        }
+                        else
+                        {
+                            var veh = AccountVehicles.SingleOrDefault(v =>
+                                v.sn.Equals(vin, StringComparison.InvariantCultureIgnoreCase));
+
+                            var vehTId = veh.tId;
+
+                            var vehicleRecord = new PULSEImport.vehicle()
+                            {
+                                accountTId = _accountTId,
+                                sn = vin,
+                                tId = vehTId
+                            };
+
+                            if (!string.IsNullOrEmpty(SafeType.SafeString(row.Cells[2].Value)))
+                                vehicleRecord.mdlYr = SafeType.SafeString(row.Cells[2].Value);
+
+                            if (!string.IsNullOrEmpty(SafeType.SafeString(row.Cells[3].Value)))
+                                vehicleRecord.descr = SafeType.SafeString(row.Cells[3].Value);
+
+                            if (!string.IsNullOrEmpty(SafeType.SafeString(row.Cells[4].FormattedValue)))
+                                vehicleRecord.mdl = SafeType.SafeString(row.Cells[4].FormattedValue);
+
+                            if (!string.IsNullOrEmpty(SafeType.SafeString(row.Cells[5].FormattedValue)))
+                                vehicleRecord.type = SafeType.SafeString(row.Cells[5].FormattedValue);
+
+                            if (model != null)
+                            {
+                                vehicleRecord.mnf = model?.typeData.mnf;
+                                vehicleRecord.mdlTId = model?.tId;
+                            }
+
+                            if (type != null)
+                                vehicleRecord.typeTId = type?.tId;
+
+                            vehicleUpdate.Add(vehicleRecord);
+                        }
+                        
                     }
                     catch (Exception exception)
                     {
@@ -2818,7 +2886,19 @@ namespace PULSEImport
                                    NullValueHandling = NullValueHandling.Ignore
                                }) + " }";
 
-                if (SaveToOculus(body, "assets", vehicles.Count, "vehicles/v4"))
+                if (SaveToOculus(body, "vehicles", vehicles.Count, "vehicles/v5"))
+                    dtgVehicles.Rows.Clear();
+            }
+
+            if (vehicleUpdate.Any())
+            {
+                var body = "{ \"vehicles\": " + JsonConvert.SerializeObject(vehicleUpdate, Formatting.None,
+                               new JsonSerializerSettings
+                               {
+                                   NullValueHandling = NullValueHandling.Ignore
+                               }) + " }";
+
+                if (UpdateOculus(body, "vehicles", vehicleUpdate.Count, "vehicles/v5"))
                     dtgVehicles.Rows.Clear();
             }
         }
@@ -3520,6 +3600,67 @@ namespace PULSEImport
             }
         }
 
+
+        private void ProcessAssociations()
+        {
+            //var placeTypes = LoadPlaceTypes();
+
+            var associations = new List<Association>();
+
+            foreach (DataGridViewRow row in dtgAssociations.Rows)
+            {
+                try
+                {
+                    // Ensure that the place has a name and at least 1 point
+                    if (!row.IsNewRow && row.Cells[0].Value != null &&
+                        row.Cells[2].Value != null && row.Cells[3].Value != null &&
+                        row.Cells[4].Value != null && row.Cells[5].Value != null)
+                    {
+                        Console.WriteLine(SafeType.SafeString(row.Cells[0].Value));
+
+                        var objType1 = SafeType.SafeString(row.Cells[0].Value);
+                        var objVal1 = row.Cells[1];
+                        var associationType = SafeType.SafeString(row.Cells[2].Value);
+                        var objType2 = SafeType.SafeString(row.Cells[3].Value);
+                        var objVal2 = row.Cells[4];
+
+                        var association = new Association()
+                        {
+                            accountTId = _accountTId,
+                            descr = string.Format("{0} {1} {2}",
+                                SafeType.SafeString(objVal1.FormattedValue), associationType, SafeType.SafeString(objVal2.FormattedValue)),
+                            startDt = DateTime.UtcNow.ToString("yyyy-MM-ddThh:mm:ssZ"),
+                            type = associationType,
+                            pmryTId = SafeType.SafeString(objVal1.Value),
+                            scdyTId = SafeType.SafeString(objVal2.Value)
+                        };
+
+                        associations.Add(association);
+                    }
+                }
+                catch (Exception exception)
+                {
+                    LogText("Could not add row: " + row.Index + 1);
+
+                    Console.WriteLine("Could not add row: " + row.Index + 1);
+                    Console.WriteLine(exception);
+                    Log4NetHelper.LogError(Logger, exception);
+                }
+            }
+
+            if (associations.Any())
+            {
+                var body = "{ \"associations\": " + JsonConvert.SerializeObject(associations, Formatting.None,
+                               new JsonSerializerSettings
+                               {
+                                   NullValueHandling = NullValueHandling.Ignore
+                               }) + " }";
+
+                if (SaveToOculus(body, "associations", associations.Count, "associations/v5"))
+                    dtgAssociations.Rows.Clear();
+            }
+        }
+
         private bool SaveToOculus(string body, string objectType, int objectCount, string apiSuffix)
         {
             try
@@ -3577,6 +3718,63 @@ namespace PULSEImport
             return false;
         }
 
+        private bool UpdateOculus(string body, string objectType, int objectCount, string apiSuffix)
+        {
+            try
+            {
+                var oculusApiRequest = new OculusAPI.Services.OculusRequest(_configData.AccessToken);
+
+                UpdateStatusBar(string.Format("Adding {0}...", objectType), true);
+
+                var response = oculusApiRequest.ExecutePUT(_configData.ApiUrl + apiSuffix, body);
+
+                if (!string.IsNullOrEmpty(SafeType.SafeString(response)))
+                {
+                    var oculusResponse = JsonConvert.DeserializeObject<OculusResponse>(SafeType.SafeString(response));
+
+                    if (oculusResponse.statusCode == "200")
+                    {
+                        var statusMessage = string.Format("{0} {1} updated!", objectCount, objectType);
+
+                        UpdateStatusBar(statusMessage);
+
+                        MessageBox.Show(statusMessage, "Success!", MessageBoxButtons.OK,
+                            MessageBoxIcon.Information);
+
+                        return true;
+                    }
+                    else
+                    {
+                        LogText(string.Format("{0}: {1}",
+                                                SafeType.SafeString(oculusResponse.statusCode),
+                                                SafeType.SafeString(oculusResponse.statusDescr)));
+
+                        MessageBox.Show("There was a problem importing the data.");
+
+                        UpdateStatusBar("");
+                    }
+                }
+                else
+                {
+                    MessageBox.Show("There was a problem saving the data.");
+
+                    UpdateStatusBar("");
+                }
+            }
+            catch (Exception exception)
+            {
+                LogText(exception.Message);
+
+                MessageBox.Show(exception.Message);
+                UpdateStatusBar("Could not save Equipment data!");
+                Log4NetHelper.LogError(Logger, exception);
+
+                //throw;
+            }
+
+            return false;
+        }
+
         #region UI Logic
         private void tabControl1_Selecting(object sender, TabControlCancelEventArgs e)
         {
@@ -3591,6 +3789,17 @@ namespace PULSEImport
         {
             if (!Properties.Settings.Default.LoggedIn)
             {
+                if ((bool) Properties.Settings.Default.ShowChangeLog == true)
+                {
+                    Properties.Settings.Default["ShowChangeLog"] = false;
+
+                    Properties.Settings.Default.Save();
+
+                    ChangeLogDialogForm cldf = new ChangeLogDialogForm();
+
+                    cldf.ShowDialog();
+                }
+
                 ShowLoginDialog();
             }
         }
@@ -3598,7 +3807,6 @@ namespace PULSEImport
         private void switchUserToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ShowLoginDialog();
-
         }
 
         private void HandleRowDelete(object sender, DataGridViewCellEventArgs e)
@@ -3751,8 +3959,26 @@ namespace PULSEImport
         private void timer1_Tick(object sender, EventArgs e)
         {
             //InstallUpdateSyncWithInfo();
-            LoadExistingDevices();
+            AccountDevices = pulseObjects.LoadExistingDevices();
         }
+
+        private void openLogFolderToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            try
+            {
+                var logDir = AppDomain.CurrentDomain.BaseDirectory + "logs/";
+
+                System.Diagnostics.Process.Start(logDir);
+            }
+            catch (Exception exception)
+            {
+                Console.WriteLine(exception);
+                Log4NetHelper.LogError(Logger, exception);
+                LogText(exception.Message);
+                //throw;
+            }
+        }
+
         #endregion
 
         private void pnlDevices_Click(object sender, EventArgs e)
@@ -4088,6 +4314,115 @@ namespace PULSEImport
             }
         }
 
+        private void dtgAssociations_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            if (e.RowIndex >= 0)
+            {
+                // Get the value of the selected Device Model
+                DataGridViewComboBoxCell cbObjectType1 =
+                    (DataGridViewComboBoxCell)dtgAssociations.Rows[e.RowIndex].Cells[0];
+                //DataGridViewComboBoxCell cbObject1 =
+                //    (DataGridViewComboBoxCell)dtgAssociations.Rows[e.RowIndex].Cells[1];
+
+                DataGridViewComboBoxCell cbObjectType2 =
+                    (DataGridViewComboBoxCell)dtgAssociations.Rows[e.RowIndex].Cells[3];
+                //DataGridViewComboBoxCell cbObject2 =
+                //    (DataGridViewComboBoxCell)dtgAssociations.Rows[e.RowIndex].Cells[4];
+
+                // Object Type 1
+                if (e.ColumnIndex == 0)
+                {
+                    if (cbObjectType1.Value != null)
+                    {
+                        switch (SafeType.SafeString(cbObjectType1.Value))
+                        {
+                            case "Device":
+                                var deviceList = pulseObjects.LoadExistingDevices();
+
+                                AssociationObj1.DataSource = deviceList.OrderBy(dl => dl.sn).ToList();
+                                AssociationObj1.DisplayMember = "sn";
+                                AssociationObj1.ValueMember = "tId";
+
+                                break;
+                            case "Equipment":
+                                LoadExistingEquipment();
+
+                                AssociationObj1.DataSource = AccountEquipment.OrderBy(ae => ae.name).ToList();
+                                AssociationObj1.DisplayMember = "name";
+                                AssociationObj1.ValueMember = "tId";
+
+                                break;
+                            case "Vehicle":
+                                LoadExistingVehicles();
+
+                                AssociationObj1.DataSource = AccountVehicles.OrderBy(av => av.name).ToList();
+                                AssociationObj1.DisplayMember = "name";
+                                AssociationObj1.ValueMember = "tId";
+
+                                break;
+                            case "Person":
+                                LoadExistingPeople();
+
+                                AssociationObj1.DataSource = AccountPeople.OrderBy(ap => ap.surname).ToList();
+                                AssociationObj1.DisplayMember = "fullName";
+                                AssociationObj1.ValueMember = "tId";
+
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+
+                    if (cbObjectType2.Value != null)
+                    {
+
+                    }
+                }
+                else if (e.ColumnIndex == 3)
+                {
+                    if (cbObjectType2.Value != null)
+                    {
+                        switch (SafeType.SafeString(cbObjectType2.Value))
+                        {
+                            case "Device":
+                                var deviceList = pulseObjects.LoadExistingDevices();
+
+                                AssociationObj2.DataSource = deviceList.OrderBy(dl => dl.sn).ToList();
+                                AssociationObj2.DisplayMember = "sn";
+                                AssociationObj2.ValueMember = "tId";
+
+                                break;
+                            case "Equipment":
+                                LoadExistingEquipment();
+
+                                AssociationObj2.DataSource = AccountEquipment.OrderBy(ae => ae.name).ToList();
+                                AssociationObj2.DisplayMember = "name";
+                                AssociationObj2.ValueMember = "tId";
+
+                                break;
+                            case "Vehicle":
+                                LoadExistingVehicles();
+
+                                AssociationObj2.DataSource = AccountVehicles.OrderBy(av => av.name).ToList();
+                                AssociationObj2.DisplayMember = "name";
+                                AssociationObj2.ValueMember = "tId";
+
+                                break;
+                            case "Person":
+                                LoadExistingPeople();
+
+                                AssociationObj2.DataSource = AccountPeople.OrderBy(ap => ap.surname).ToList();
+                                AssociationObj2.DisplayMember = "fullName";
+                                AssociationObj2.ValueMember = "tId";
+
+                                break;
+                            default:
+                                break;
+                        }
+                    }
+                }
+            }
+        }
     }
 
     #region Classes

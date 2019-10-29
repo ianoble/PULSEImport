@@ -137,6 +137,7 @@ namespace PULSEImport
                 catch (Exception exception)
                 {
                     Console.WriteLine(exception);
+                    this.Close();
                     //throw;
                 }
             }

@@ -19,6 +19,7 @@
                 ApiUrl = "https://api-stg.trimble.com/t/trimble.com/qa/oculus/", // "https://api-stg.trimble.com/t/trimble.com/staging/capi/",
                 // https://api-stg.trimble.com/t/trimble.com/oculus/accounts/v5/?name=wester
                 // https://api-stg.trimble.com/t/trimble.com/staging/capi/
+                AccountsApiUrl = "https://api.trimble.com/t/trimble.com/oculus/",
                 PULSEApiUrl = "https://api-stg.trimble.com/t/trimble.com/qa/oculus/",
                 OculusTId = "57becd96e4b0d4a289fd8f72" // TODO get source account on Staging
             };
@@ -33,6 +34,7 @@
                 ApiUrl = "https://api-stg.trimble.com/t/trimble.com/stg/pulse/", // "https://api-stg.trimble.com/t/trimble.com/staging/capi/",
                 // https://api-stg.trimble.com/t/trimble.com/oculus/accounts/v5/?name=wester
                 // https://api-stg.trimble.com/t/trimble.com/staging/capi/
+                AccountsApiUrl = "https://api.trimble.com/t/trimble.com/oculus/",
                 PULSEApiUrl = "https://api-stg.trimble.com/t/trimble.com/na/pulse/",
                 OculusTId = "5823032be4b031d66b00e246" // TODO get source account on Staging
             };
@@ -45,8 +47,9 @@
             {
                 ClientId = "wPsCetnN3OiJa8focyfXf1LsuK0a",
                 Secret = "t8SoVjkFDg_HwI_I4wa9kOfBrzsa",
-                ApiUrl = "https://api.trimble.com/t/trimble.com/oculus/",
+                ApiUrl = "https://api.trimble.com/t/trimble.com/na/pulse/",
                 PULSEApiUrl = "https://api.trimble.com/t/trimble.com/na/pulse/",
+                AccountsApiUrl = "https://api.trimble.com/t/trimble.com/na/pulse/",
                 OculusTId = "58240ee5e4b01e7825f67da6"
             };
         }
@@ -59,7 +62,8 @@
                 ClientId = "sgJ5qoYcAFZeeakcs7QSzV60UaAa",
                 Secret = "j9_keaO7vMC73t4zWB97TLh8PNAa",
                 ApiUrl = "https://api.trimble.com/t/trimble.com/eu/pulse/",
-                PULSEApiUrl = "https://api.trimble.com/t/trimble.com/eu/pulse/"
+                PULSEApiUrl = "https://api.trimble.com/t/trimble.com/eu/pulse/",
+                AccountsApiUrl = "https://api.trimble.com/t/trimble.com/eu/pulse/",
 
                 //"host" : "api.trimble.com",
                 //"token_api_path" : "/t/trimble.com/eu/pulse/token/v5",

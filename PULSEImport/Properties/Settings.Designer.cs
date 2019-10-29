@@ -100,5 +100,17 @@ namespace PULSEImport.Properties {
                 this["AccessToken"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("True")]
+        public bool ShowChangeLog {
+            get {
+                return ((bool)(this["ShowChangeLog"]));
+            }
+            set {
+                this["ShowChangeLog"] = value;
+            }
+        }
     }
 }
